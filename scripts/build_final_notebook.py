@@ -183,9 +183,7 @@ def ler_coorte(c, rng):
     return pd.concat(blocos)
 
 CACHE = PROC / "tcga_6coortes_completa.parquet"   # salva CpGs nas linhas (poucas colunas = parquet rápido)
-if CACHE.exists():
-    M = pd.read_parquet(CACHE).T
-else:
+if not CACHE.exists():
     rng = np.random.default_rng(RANDOM_STATE)
     mats = {}
     for c in COORTES:
@@ -195,11 +193,15 @@ else:
     print("matriz autossômica:", M.shape)
     nan = M.isna().any()
     print(f"CpGs com algum NaN (removidos): {nan.sum()}")
-    M = M.loc[:, ~nan]
-    M.T.to_parquet(CACHE)
-print("matriz completa (sem NaN):", M.shape)
+    M.loc[:, ~nan].T.to_parquet(CACHE)
+    del M; import gc; gc.collect()
+# sempre relê do cache: a matriz sai contígua em float32 (a montada acima é fragmentada e dobra o uso de memória)
+M = pd.read_parquet(CACHE).T
+print("matriz completa (sem NaN):", M.shape, M.dtypes.iloc[0])
 
-top20k = M.var().sort_values(ascending=False).index[:20_000]
+# variância calculada em blocos de colunas: M.var() de uma vez passa de 13 GB de memória (estoura o Colab)
+variancia = pd.concat([M.iloc[:, j:j + 20_000].var() for j in range(0, M.shape[1], 20_000)])
+top20k = variancia.sort_values(ascending=False).index[:20_000]
 X = M[top20k]
 print("X (top 20 mil por variância):", X.shape)"""),
     code(r"""origem = {s: c for c in COORTES for s in cabecalho(c)}
@@ -378,13 +380,17 @@ Um desempenho de ~98% pede verificação. A auditoria testa cada caminho possív
 | Árvore com 3 níveis / 1 único CpG | Se a tarefa é fácil a ponto de modelos triviais resolverem |"""),
     code(r"""class TopVariance(BaseEstimator, TransformerMixin):
     # mesmo filtro de variância, mas ajustado só no treino de cada fold
-    def __init__(self, n=20_000):
-        self.n = n
+    # (variância calculada em blocos de colunas para caber na memória do Colab)
+    def __init__(self, n=20_000, bloco=20_000):
+        self.n, self.bloco = n, bloco
     def fit(self, X, y=None):
-        self.idx_ = np.argsort(np.asarray(X).var(axis=0))[::-1][: self.n]
+        X = pd.DataFrame(X)
+        var = np.concatenate([X.iloc[:, j:j + self.bloco].to_numpy(np.float32).var(axis=0)
+                              for j in range(0, X.shape[1], self.bloco)])
+        self.idx_ = np.argsort(var)[::-1][: self.n]
         return self
     def transform(self, X):
-        return np.asarray(X)[:, self.idx_]
+        return pd.DataFrame(X).iloc[:, self.idx_].to_numpy(np.float32)
 
 def pipe_aud(pre=None, k=500, model=None):
     steps = ([("var", pre)] if pre is not None else []) + [
@@ -453,6 +459,8 @@ if not ens_path.exists():   # anotação de genes (Ensembl BioMart, GRCh38); já
          '<Dataset name="hsapiens_gene_ensembl" interface="default"><Attribute name="ensembl_gene_id"/>'
          '<Attribute name="external_gene_name"/><Attribute name="chromosome_name"/><Attribute name="gene_biotype"/></Dataset></Query>')
     baixar("https://www.ensembl.org/biomart/martservice?query=" + urllib.parse.quote(q), ens_path)
+    if not ens_path.read_text(encoding="utf-8")[:14] == "Gene stable ID":   # BioMart às vezes devolve erro em texto
+        ens_path.unlink(); raise RuntimeError("BioMart falhou; rode a célula de novo em alguns minutos")
 
 def read_geo_meta(path):
     rows = {}

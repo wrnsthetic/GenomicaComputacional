@@ -438,7 +438,15 @@ GenomicaComputacional/
 
 **Pendente (em ordem):**
 1. [x] **Notebook final** `notebooks/trabalho_final.ipynb`: registro de fontes/classes/validação → contexto e Parte II → **TCGA** (dados, PCA, pipeline, etapa 1, etapa 2, hierárquico, importâncias, auditoria) → **tentativa com plasma** (confundidores, FDR, nested CV, lote/idade, demonstração de vazamento) → comparação → conclusões.
-2. [ ] **Validar o notebook final no Google Colab gratuito** (memória e tempo; o download do TCGA leva alguns minutos).
+2. [~] **Validar o notebook final no Google Colab gratuito.** Simulação local já feita (18/11/2026):
+   - rodou numa pasta vazia, sem repositório e sem cache;
+   - baixou sozinho GEO e Ensembl;
+   - montou a matriz do zero;
+   - números idênticos aos do plano;
+   - **pico de memória de 6,1 GB** (o Colab gratuito tem ~12,7 GB).
+   - Corrigido no caminho: `M.var()` do pandas na matriz inteira chegava a 13,7 GB. Agora a variância é calculada em blocos de colunas, e a matriz é sempre relida do cache parquet. Os valores e a seleção de CpGs são idênticos.
+   - **Para rodar no Colab:** basta subir só o `.ipynb` (Arquivo → Fazer upload) e fazer *Executar tudo*. Não precisa de Drive nem de GitHub. O que falta é só o teste real no Colab, pelo autor. O tempo estimado é de 40–90 min, porque o Colab tem 2 CPUs e o local leva ~15 min com os dados prontos.
+   - Os resultados ficam em `/content/results/` e somem quando a sessão fecha.
 3. [x] **Reestruturar o relatório:** TCGA como Parte III principal; plasma como subseção da Parte II ("avaliação experimental"); preencher resultados, Parte IV (seção 7), conclusão e as novas referências (Hoadley 2018, Moran 2016, Capper 2018).
 4. [x] Converter o relatório para LaTeX: `python scripts/md_to_latex.py` gera `relatorio/latex/`. Para usar no Overleaf: compactar a pasta `relatorio/latex/` em .zip, fazer *New Project → Upload Project* e compilar com pdfLaTeX. **Não foi compilado localmente** (sem LaTeX instalado), então conferir o primeiro build no Overleaf. Editar sempre o `.md` e regenerar, ou passar a editar só no Overleaf; não misturar os dois.
 5. [ ] Montar os slides (seção 14).
