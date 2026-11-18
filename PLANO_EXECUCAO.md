@@ -138,6 +138,12 @@ Estrutura sugerida do notebook:
 
 ---
 
+### 3.7 Vazamento × confundimento (conceito para o relatório)
+- **Vazamento (data leakage)** = informação do conjunto de teste influenciando o treino. Exemplos: selecionar features ou normalizar com o dataset inteiro antes do split; mesmo paciente no treino e no teste. **É erro de procedimento → é evitado 100%** com `Pipeline` + seleção dentro de cada fold + split por indivíduo.
+- **Confundimento / efeito de lote (batch effect)** = variável técnica ou demográfica (lote `mix`, sexo, idade) correlacionada com o rótulo. O modelo pode aprender esse "atalho" (*shortcut learning*). **É característica dos dados, não erro de procedimento** → não dá para eliminar totalmente; dá para **reduzir, medir e discutir**.
+- Por que não "padronizar" o lote (ex.: ComBat): quando o lote está quase perfeitamente alinhado com a classe (25/31 NC são mix; 0/35 STAD são mix), corrigir o lote **apaga junto o sinal biológico** — não dá para separar o que é lote do que é câncer. E, se feita no dataset inteiro antes do split, a correção vira **vazamento**. O que fazemos: remover o confundidor quando ele está nas features (sexo → tirar chrX/Y), e para o lote, análise de sensibilidade nas amostras que cruzam o lote (6 NC não-mix, 2 CRC mix).
+- Nota: "mix" é uma **inferência** nossa a partir do nome das amostras; o GEO não documenta o que significa.
+
 ## 4. Parte IV — Discussão (responder no relatório)
 
 - [ ] 11. Há diferenças de metilação que separam as classes?
