@@ -24,7 +24,7 @@ Crie uma apresentação acadêmica em **português do Brasil**, com **11 slides 
 ### Slide 1 — Título
 - **Título:** Detecção de câncer e tecido de origem por metilação do DNA
 - **Subtítulo:** Um classificador com dados públicos, inspirado em Liu et al. (2020), *Annals of Oncology*
-- **Rodapé:** João Pedro Thurow Tomaszewski · Genômica Computacional · 2026
+- **Rodapé:** Laís Goulart · Genômica Computacional · 2026
 
 ### Slide 2 — O artigo: de onde vêm os dados
 Layout em duas colunas.

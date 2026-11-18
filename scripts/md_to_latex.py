@@ -35,7 +35,7 @@ PREAMBULO = r"""\documentclass[11pt,a4paper]{article}
 \graphicspath{{figuras/}}
 
 \title{%TITULO%}
-\author{João Pedro Thurow Tomaszewski\\[2pt]\small Disciplina: Genômica Computacional}
+\author{Laís Goulart\\[2pt]\small Disciplina: Genômica Computacional}
 \date{\today}
 
 \begin{document}

@@ -1,7 +1,7 @@
 # Detecção de câncer e inferência do tecido de origem por padrões de metilação do DNA
 
 **Disciplina:** Genômica Computacional
-**Autor:** João Pedro Thurow Tomaszewski
+**Autor:** Laís Goulart
 **Artigo de referência:** Liu, M. C. et al. (2020). *Sensitive and specific multi-cancer detection and localization using methylation signatures in cell-free DNA*. Annals of Oncology, 31(6), 745–759.
 **Notebook reproduzível:** `notebooks/trabalho_final.ipynb`
 

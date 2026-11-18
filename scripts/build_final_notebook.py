@@ -16,7 +16,7 @@ cells = [
     # ------------------------------------------------------------------ abertura
     md(r"""# Detecção de câncer e tecido de origem por metilação do DNA
 
-**Disciplina:** Genômica Computacional · **Autor:** João Pedro Thurow Tomaszewski
+**Disciplina:** Genômica Computacional · **Autor:** Laís Goulart
 **Artigo de referência:** Liu, M. C. et al. (2020). *Sensitive and specific multi-cancer detection and localization using methylation signatures in cell-free DNA*. Annals of Oncology, 31(6), 745–759.
 
 Este notebook é a parte prática do trabalho (Parte III do enunciado). Ele é **reprodutível do zero**: baixa os dados públicos, monta a matriz amostra × feature, treina e avalia os classificadores e gera todas as figuras e tabelas usadas no relatório.
