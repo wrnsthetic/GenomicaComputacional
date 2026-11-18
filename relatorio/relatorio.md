@@ -1,17 +1,26 @@
-# Detecção de câncer e inferência do tecido de origem por padrões de metilação do DNA em cfDNA plasmático
+# Detecção de câncer e inferência do tecido de origem por padrões de metilação do DNA
 
 **Disciplina:** Genômica Computacional
 **Autor:** João Pedro Thurow Tomaszewski
 **Artigo de referência:** Liu, M. C. et al. (2020). *Sensitive and specific multi-cancer detection and localization using methylation signatures in cell-free DNA*. Annals of Oncology, 31(6), 745–759.
 **Notebook reproduzível:** `notebooks/trabalho_final.ipynb`
 
-> ⚠️ RASCUNHO — trechos marcados com `[[PREENCHER]]` dependem dos resultados finais do notebook.
-
 ---
 
 ## Resumo
 
-Este trabalho estuda a metodologia de detecção multicâncer baseada em metilação de DNA livre circulante (cfDNA) proposta por Liu et al. (2020) e implementa uma versão experimental, em pequena escala, com dados públicos. Como os dados dos estudos CCGA e STRIVE não estão publicamente disponíveis, investigamos conjuntos alternativos no NCBI GEO e no TCGA e selecionamos o GSE186575, composto por perfis de cfMeDIP-seq do plasma de 32 pacientes com câncer colorretal, 35 com câncer gástrico e 31 indivíduos saudáveis. Replicamos a estrutura em duas etapas do artigo, com detecção de câncer seguida da predição do tecido de origem, usando Random Forest e validação cruzada aninhada, com todas as etapas de seleção de features restritas ao treino. A análise exploratória revelou dois fatores de confundimento relevantes: o sexo biológico, removido ao excluir os cromossomos sexuais, e um provável efeito de lote associado aos controles. Esses fatores são discutidos como limitações. `[[PREENCHER: principais números de desempenho]]`
+Este trabalho estuda a metodologia de detecção multicâncer baseada em metilação de DNA livre circulante (cfDNA) proposta por Liu et al. (2020) e implementa uma versão experimental, em pequena escala, com dados públicos. Os dados dos estudos CCGA e STRIVE não estão disponíveis publicamente, então avaliamos seis conjuntos alternativos.
+
+A primeira tentativa usou o GSE186575, com perfis de cfMeDIP-seq do plasma de pacientes com câncer colorretal, câncer gástrico e indivíduos saudáveis. A detecção de câncer ficou no nível do acaso (ROC-AUC de 0,55). Nenhum promotor diferiu significativamente entre as classes, e o sinal era dominado por um efeito de lote e pela idade. Por isso, o experimento principal foi feito com dados de **tecido** do TCGA: perfis Illumina 450K de 1.290 amostras de 919 pacientes, cobrindo seis tipos de câncer (cólon, estômago, pulmão, fígado, mama e rim).
+
+Replicamos a estrutura em duas etapas do artigo: primeiro tumor vs normal, depois o tecido de origem. O classificador é um Random Forest com seleção de features dentro do pipeline, avaliado por validação cruzada aninhada **agrupada por paciente**. Os resultados foram:
+- tumor vs normal: acurácia de 0,984 e ROC-AUC de 0,997;
+- tecido de origem (6 classes): acurácia de 0,980 e F1 macro de 0,980;
+- fluxo hierárquico completo: acurácia de 0,971.
+
+Uma auditoria descartou vazamento de informação. Com rótulos embaralhados, a AUC cai para 0,50, e 20 mil CpGs escolhidos ao acaso reproduzem o desempenho. A principal confusão foi entre cólon e estômago. Os CpGs mais informativos são específicos de tecido (KANK1 no cólon; RBP5 e LITAF no fígado).
+
+O contraste entre tecido e plasma mostra que a assinatura de metilação é forte na fonte, mas fica diluída no sangue. Essa distância é justamente o que o artigo supera com escala e sequenciamento direcionado.
 
 ---
 
@@ -127,167 +136,303 @@ Todos os metadados foram conferidos diretamente nos registros do GEO e do UCSC X
 | Nº de amostras | 98 | 126 GSMs; matriz com 64 pacientes | ~100–900 por tipo tumoral | 5 |
 | Classes | CRC 32, gástrico 35, saudável 31 | Pulmão 15, fígado 10, pâncreas 7, estômago 5, cólon 4, mama 4, GBM 4 | Tumor vs normal adjacente, por tipo | 3 pacientes HNC |
 | Controles | 31 saudáveis | 8 saudáveis + 7 HBV | Tecido normal adjacente | Nenhum |
-| Material | **Plasma (cfDNA)** | Plasma (cfDNA) | Tecido tumoral | Plasma |
-| Tecnologia | cfMeDIP-seq | hMe-Seal (5hmC) | Illumina 450K | Bissulfito direcionado |
+| Material | Plasma (cfDNA) | Plasma (cfDNA) | **Tecido** | Plasma |
+| Tecnologia | cfMeDIP-seq | hMe-Seal (5hmC) | Illumina 450K (bissulfito) | Bissulfito direcionado |
 | Formato | Matriz CPM por promotor (58.288 × 98) | Matriz por gene (20.244 × 68) | Beta values por CpG (~485 mil) | Arquivos brutos |
 | Acesso | Público | Público | Público | Público |
-| Viabilidade | **Alta** | Média | Alta (só tecido) | Inviável |
+| Viabilidade | Alta (**tentado**, seção 3.3) | Média | Alta (**escolhido**) | Inviável |
 
-Também foram avaliados o GSE275598 (cfMeDIP-seq de tumores cerebrais pediátricos, fora do escopo multicâncer em adultos) e o GSE122126 (atlas de metilação de tipos celulares, feito para deconvolução e com pouquíssimos cânceres).
+Também avaliamos dois outros conjuntos, ambos descartados:
+- **GSE275598:** cfMeDIP-seq de tumores cerebrais pediátricos, fora do escopo multicâncer em adultos.
+- **GSE122126:** atlas de metilação de tipos celulares, feito para deconvolução e com pouquíssimos cânceres.
 
 **Observações sobre cada candidato:**
-- **GSE81314:** mede 5-hidroximetilcitosina (5hmC), uma marca epigenética **diferente** da 5mC usada no artigo. Tem de 4 a 15 pacientes por classe, pouco para um classificador multiclasse. A matriz também contém colunas que não são pacientes (DNA genômico de leucócitos e controles técnicos de *input*), que precisariam ser removidas.
-- **TCGA:** grande e bem anotado, mas formado por **tecido tumoral**, não por plasma. Classificar tecido tumoral é um problema mais fácil e diferente da detecção em cfDNA, onde o sinal tumoral é diluído em DNA de células sanguíneas. O arquivo pan-câncer único tem 14 GB, inviável no Google Colab gratuito. Os arquivos por coorte (100–800 MB) são utilizáveis.
+- **GSE81314:** mede 5-hidroximetilcitosina (5hmC), uma marca epigenética **diferente** da 5mC usada no artigo. Tem de 4 a 15 pacientes por classe, pouco para um classificador multiclasse.
+- **GSE186575:** é o único candidato público que reúne cfDNA plasmático (o mesmo material do artigo), controles saudáveis e mais de um tipo de câncer. Por isso foi a primeira escolha.
+- **TCGA:** grande, bem anotado, com vários tipos de câncer e com tecido normal pareado de muitos pacientes. A ressalva é que é **tecido tumoral**, não plasma. O arquivo pan-câncer único tem 14 GB, inviável no Google Colab gratuito, mas os arquivos por coorte (300–800 MB) são utilizáveis.
 
-### 3.3 Dataset escolhido e justificativa
+### 3.3 Avaliação experimental do GSE186575 (plasma)
 
-Escolhemos o **GSE186575** por ser o único candidato público que reúne ao mesmo tempo:
-1. **cfDNA plasmático**, o mesmo material biológico do artigo;
-2. **controles saudáveis**, necessários para a tarefa de detecção;
-3. **mais de um tipo de câncer**, necessário para a tarefa de tecido de origem;
-4. tamanho amostral razoável por classe (31 a 35);
-5. dados já processados em matriz, leves (22 MB) e de acesso livre.
+Antes de adotar o GSE186575, avaliamos experimentalmente se ele sustentava um classificador. Esta seção resume essa avaliação, que motivou a troca de dataset.
 
-Assim, é possível reproduzir **em pequena escala o fluxo em duas etapas do artigo**: detecção seguida de TOO. O TCGA fica registrado como alternativa para um experimento complementar de classificação de tecido.
+**Dados.** O GSE186575 tem plasma do Peking University First Hospital (China), perfilado por **cfMeDIP-seq**. Nessa técnica, um anticorpo contra 5mC "pesca" os fragmentos metilados, que são então sequenciados e contados por **região promotora** de cada gene, em contagens por milhão (CPM). A matriz tem 98 amostras × 58.288 promotores, uma amostra por participante. A feature é a **quantidade de DNA metilado em uma região**, um sinal agregado. No artigo, a medida é o padrão de metilação de cada CpG em cada fragmento.
+
+**Fatores de confundimento identificados na análise exploratória:**
+1. **Sexo.** O 2º componente principal separava as amostras por sexo, por causa dos promotores dos cromossomos X e Y. O grupo gástrico é 77% masculino, então o classificador poderia distinguir os dois cânceres pelo sexo. Removemos os promotores de chrX, chrY, do DNA mitocondrial e os sem anotação (Ensembl BioMart, hg38). Restaram 53.768 promotores autossômicos.
+2. **Provável efeito de lote.** 27 amostras têm o sufixo `mix` no nome, distribuídas de forma muito desigual: 25 dos 31 controles, 2 dos 32 CRC e nenhum dos 35 gástricos. O significado do sufixo não é documentado no GEO, então o tratamos como hipótese de lote de processamento.
+3. **Idade.** Os controles são cerca de 10 anos mais jovens (mediana de 50 anos, contra 62–64 nos grupos com câncer).
+
+**Modelagem.** Usamos a mesma lógica do experimento principal (seção 4.3):
+- pipeline com filtro de presença (sinal em ≥ 50% das amostras de treino), `SelectKBest(f_classif)` e Random Forest;
+- transformação `log2(CPM+1)`;
+- validação cruzada aninhada, com laço externo de 5 *folds* × 3 repetições e laço interno de 5 *folds*, escolhendo *k* e `max_features`.
+
+**Resultados.**
+
+| Tarefa | ROC-AUC | Acurácia | Sensibilidade | Especificidade | F1 |
+|---|---|---|---|---|---|
+| Detecção: câncer (67) vs saudável (31) | 0,553 ± 0,182 | 0,623 | 0,763 | **0,324** | 0,728 |
+| Origem: colorretal (32) vs gástrico (35) | 0,789 ± 0,136 | 0,711 | 0,752 | 0,663 | 0,726 |
+
+A investigação da falha na detecção mostrou:
+- **Nenhuma diferença significativa entre as classes.** No teste F promotor a promotor, com correção de Benjamini–Hochberg (FDR de 5%), houve **0 promotores significativos** em câncer vs saudável e 0 em colorretal vs gástrico. Já entre controles `mix` e não-`mix`, todos saudáveis, foram **526**. O lote deixa mais marca na metilação do que o câncer.
+- **Lote:** os 6 controles não-`mix` foram **todos** classificados como câncer.
+- **Idade:** um modelo usando apenas a idade atinge AUC de **0,70** na detecção, mais que o modelo de metilação.
+
+Não aplicamos correção de lote (ComBat; Johnson et al., 2007). Com o lote quase alinhado à classe, a correção removeria também o sinal biológico (Leek et al., 2010).
+
+**Demonstração do efeito do vazamento.** Com **rótulos aleatórios** (sem sinal real), selecionar os 500 promotores mais associados ao rótulo usando todas as amostras, antes da validação cruzada, produz AUC de **0,84**: um sinal inteiramente fabricado. Com a seleção dentro do pipeline, a AUC é de 0,27. O valor abaixo de 0,5 é flutuação esperada com n pequeno e rótulos sem sinal. Toda seleção supervisionada deste trabalho é feita dentro do pipeline.
+
+**Conclusão da avaliação.** Detecção no nível do acaso, ausência de promotores significativos e lote mais forte que o câncer não permitem um experimento de classificação viável. A tentativa é mantida como evidência para a discussão: com dados públicos de pequena escala e baixa resolução, o sinal tumoral no plasma é superado por ruído técnico e demográfico.
+
+### 3.4 Dataset escolhido e justificativa
+
+O experimento principal usa o **TCGA**, com metilação de tecido (Illumina 450K) de seis tipos de câncer. Os motivos são:
+1. **Mesma química do artigo:** conversão por bissulfito com leitura por CpG (*beta value*). O GSE186575 usa imunoprecipitação.
+2. **Escala:** centenas de amostras por tipo de câncer, o que permite uma tarefa de tecido de origem com várias classes.
+3. **Tecido normal adjacente** pareado de muitos pacientes, o que permite a etapa tumor vs normal.
+4. **Identificação do paciente** no código da amostra, o que permite validação separando indivíduos.
+5. **Relação direta com o artigo:** os autores usaram arrays de metilação do TCGA para selecionar as regiões do painel.
+
+A consequência é uma **mudança do problema**: em vez de *detectar câncer no sangue*, o experimento passa a *classificar o tecido*. Essa diferença é tratada como limitação e explorada na discussão (seção 6).
 
 ---
 
-## 4. Parte III — Metodologia
+## 4. Parte III — Experimento com dados de tecido (TCGA)
 
-### 4.1 Dados
+### 4.1 Dados e amostragem
 
-O **GSE186575** reúne amostras de plasma coletadas no Peking University First Hospital (China). O cfDNA foi extraído de 1 a 3 mL de plasma e perfilado por **cfMeDIP-seq** (*cell-free methylated DNA immunoprecipitation*). Nessa técnica, um anticorpo contra 5mC "pesca" os fragmentos metilados, que são então sequenciados. Os autores alinharam as leituras ao genoma hg38 e contaram os fragmentos por **região promotora** de cada gene, em contagens por milhão (CPM).
+- **Fonte:** UCSC Xena (Goldman et al., 2020), arquivos `TCGA.<COORTE>.sampleMap/HumanMethylation450.gz`, mais o *probe map* `illuminaMethyl450_hg19_GPL16304_TCGAlegacy` (CpG → gene e cromossomo).
+- **Medida:** *beta value* de cada CpG, entre 0 e 1, que corresponde à fração das cópias de DNA metiladas naquele sítio.
+- **Tipos de câncer:** cólon (COAD), estômago (STAD), pulmão (LUAD), fígado (LIHC), mama (BRCA) e rim (KIRC). São tipos frequentes, de órgãos diferentes, com tecido normal disponível. Incluímos dois órgãos do trato gastrointestinal (cólon e estômago) como par potencialmente difícil.
+- **Rótulos:** derivados do código da amostra `TCGA-XX-YYYY-TT`. Os 12 primeiros caracteres identificam o **paciente**. `TT = 01` indica tumor primário e `TT = 11`, tecido normal adjacente.
+- **Amostragem:** incluímos todas as amostras normais, os tumores pareados desses normais (mesmo paciente) e tumores aleatórios até completar 150 por coorte (semente fixa). Isso limita o desbalanceamento entre tipos (a coorte de mama tem 790 tumores) e mantém a matriz dentro da memória do Colab gratuito.
 
-- **Matriz:** 98 amostras × 58.288 promotores (CPM). Não há valores ausentes; cerca de 9,3% dos valores são zero.
-- **Rótulos:** derivados do prefixo de cada amostra: `CRC` (colorretal, n = 32), `STAD` (adenocarcinoma gástrico, n = 35) e `NC` (controle saudável, n = 31).
-- **Metadados:** sexo, idade e estadiamento, extraídos da *series matrix* do GEO.
-- **Indivíduos:** cada amostra corresponde a um participante distinto, então não há múltiplas amostras por pessoa.
+| Tecido | Normal | Tumor | Total |
+|---|---|---|---|
+| Cólon | 38 | 150 | 188 |
+| Estômago | 2 | 150 | 152 |
+| Fígado | 50 | 150 | 200 |
+| Mama | 98 | 150 | 248 |
+| Pulmão | 32 | 150 | 182 |
+| Rim | 160 | 160 | 320 |
+| **Total** | **380** | **910** | **1.290** |
 
-**Diferença importante em relação ao artigo:** no cfMeDIP-seq, a feature é a **quantidade de DNA metilado em uma região** (sinal agregado por promotor). No artigo, a medida é o **padrão de metilação de cada CpG em cada fragmento**, obtido por bissulfito.
+As 1.290 amostras vêm de **919 pacientes**, dos quais **371 têm tumor e normal**. O rim tem 160 tumores porque todos os seus normais são pareados.
 
-### 4.2 Análise exploratória e pré-processamento
+### 4.2 Pré-processamento
 
-A análise exploratória por PCA, feita nos 5.000 promotores de maior variância, revelou três fatores não biológicos com impacto potencial no classificador.
+1. **Só CpGs autossômicos** (385.809 de 395.985). A coorte de mama é quase só feminina, e os CpGs dos cromossomos sexuais permitiriam ao modelo aprender sexo em vez de tecido.
+2. **Remoção de CpGs com algum valor ausente** (49.549), restando 336.260.
+3. **Filtro não supervisionado:** os 20 mil CpGs de maior variância. Esse filtro não usa rótulos. Mesmo assim, a auditoria (seção 5.5) mostra que aplicá-lo dentro de cada *fold* de treino produz o mesmo resultado.
 
-1. **Sexo biológico.** Com todos os cromossomos incluídos, o 2º componente principal (12,7% da variância) separava as amostras quase perfeitamente por sexo. Isso se explica pelos promotores dos cromossomos X e Y. O fator é crítico porque o grupo gástrico é 77% masculino, enquanto os demais são balanceados: um classificador poderia distinguir STAD de CRC pelo sexo. **Decisão:** remover os promotores dos cromossomos X, Y, mitocondrial e os sem anotação (mapeamento gene → cromossomo via Ensembl BioMart, hg38), restando **53.768 promotores autossômicos**. Depois da remoção, o componente associado ao sexo desaparece.
+Na **análise exploratória por PCA** (PC1 com 34,7% e PC2 com 11,6% da variância), as amostras **normais formam grupos compactos por tecido**, e os **tumores se dispersam**. Isso reflete a heterogeneidade e a desregulação da metilação no câncer. O sinal de tecido é visível antes de qualquer modelo supervisionado.
 
-2. **Componente técnico dominante.** Mesmo só com os autossomos, o PC1 explica 46% da variância e está correlacionado com a fração de zeros por amostra (r = −0,63), não com o grupo. Isso sugere variação na eficiência da imunoprecipitação ou na profundidade de sequenciamento. Duas amostras de CRC aparecem como outliers extremos nesse eixo.
+### 4.3 Classificador
 
-3. **Provável efeito de lote.** 27 amostras têm o sufixo `mix` no nome, e elas se distribuem de forma muito desigual: 25 dos 31 controles, 2 dos 32 CRC e nenhum dos 35 STAD. O significado do sufixo não é documentado no GEO, então o tratamos como **hipótese** de lote de processamento. Um Random Forest consegue distinguir controles `mix` de controles não-`mix` (todos saudáveis) com AUC de cerca de 0,82, o que confirma uma assinatura técnica associada a esse grupo.
-
-Além disso, os **controles são cerca de 10 anos mais jovens** (mediana de 50 anos contra 62–64 nos grupos com câncer). A idade é um conhecido modulador da metilação do DNA.
-
-**Pré-processamento final:**
-- transformação `log2(CPM + 1)`, aplicada amostra a amostra, para reduzir a assimetria;
-- remoção dos cromossomos sexuais e mitocondrial.
-
-Nenhuma dessas etapas usa estatísticas de outras amostras, então não há risco de vazamento.
-
-### 4.3 Tratamento dos fatores de confundimento
-
-Sexo, lote e idade estão correlacionados com as classes. Por isso, o classificador pode aprender esses fatores em vez do sinal de metilação associado ao câncer. Não é possível eliminá-los totalmente com os dados disponíveis, então as estratégias foram:
-- **Sexo:** remoção das features que carregam o sinal (promotores de chrX/Y).
-- **Lote `mix`:** análise de sensibilidade nas amostras que "cruzam" o lote, ou seja, os 6 controles não-`mix` e os 2 CRC `mix`. Se o modelo tivesse aprendido o lote, erraria justamente nessas amostras.
-- **Idade:** um modelo usando apenas a idade serve de linha de base.
-
-Métodos de correção de lote, como o ComBat (Johnson et al., 2007), não foram aplicados. Com o lote quase alinhado à classe, a correção removeria também o sinal biológico, já que não há como separar o efeito do lote do efeito do câncer (Leek et al., 2010).
-
-### 4.4 Classificador e validação
-
-**Algoritmo: Random Forest** (Breiman, 2001). É um conjunto de árvores de decisão, cada uma treinada numa amostra *bootstrap* dos dados e considerando, a cada divisão, um subconjunto aleatório de features. A predição final é a votação das árvores. O Random Forest foi escolhido porque:
+**Algoritmo: Random Forest** (Breiman, 2001). É um conjunto de árvores de decisão, cada uma treinada numa amostra *bootstrap* dos dados e considerando, a cada divisão, um subconjunto aleatório de features. A predição final é a votação das árvores. Foi escolhido porque:
 - lida bem com alta dimensionalidade (p ≫ n);
 - captura interações e relações não lineares;
 - é pouco sensível à escala das features;
 - fornece medidas de importância das features.
 
-Usamos 500 árvores e `class_weight="balanced"` para compensar o desbalanceamento entre classes.
+Usamos 500 árvores e `class_weight="balanced"`.
 
-**Pipeline** (todas as etapas ajustadas **somente no treino** de cada partição):
-1. **Filtro de presença:** mantém promotores com sinal > 0 em pelo menos 50% das amostras de treino.
-2. **Seleção supervisionada:** `SelectKBest` com teste F (ANOVA), mantendo os *k* promotores mais associados ao rótulo.
-3. **Random Forest.**
+**Pipeline** (`scikit-learn`; Pedregosa et al., 2011):
+1. **Seleção supervisionada:** `SelectKBest` com teste F (ANOVA), mantendo os *k* CpGs mais associados ao rótulo. Por ser supervisionada, fica **dentro do pipeline**: é reajustada apenas com o treino de cada partição (Ambroise & McLachlan, 2002).
+2. **Random Forest.**
 
-**Validação:**
-- **Validação cruzada aninhada** (*nested CV*; Varma & Simon, 2006). O laço externo usa 5 *folds* estratificados repetidos 3 vezes e estima o desempenho. O laço interno usa 5 *folds* e escolhe os hiperparâmetros: *k* ∈ {100, 500, 2000} e `max_features` ∈ {√p, 0,1·p}.
-- **Hold-out estratificado (70/30)** para apresentar a matriz de confusão, a curva ROC e a importância das features num conjunto nunca usado no treino nem na escolha de hiperparâmetros.
+### 4.4 Validação
+
+- **Validação cruzada aninhada** (Varma & Simon, 2006):
+  - o laço externo (5 *folds*) estima o desempenho, e cada amostra é prevista uma única vez, por um modelo que nunca a viu;
+  - o laço interno (3 *folds*, só dentro do treino externo) escolhe *k* ∈ {100, 500, 2000}.
+- **Agrupamento por paciente** (`StratifiedGroupKFold`, grupo = paciente), nos dois laços. Tumor e normal do mesmo paciente **nunca** ficam um no treino e outro no teste. Sem isso, o modelo poderia acertar reconhecendo a metilação constitucional do indivíduo, e não o estado tumoral. Verificamos que nenhum paciente aparece em treino e teste de um mesmo *fold*.
 
 **Tarefas:**
-1. **Detecção:** câncer (CRC + STAD, n = 67) vs saudável (n = 31).
-2. **TOO:** CRC (n = 32) vs STAD (n = 35), só com amostras de câncer.
-3. **Fluxo hierárquico:** predições fora da amostra (*out-of-fold*) da etapa 1 e, nos positivos, da etapa 2, resultando numa classificação final em três classes (NC / CRC / STAD).
+1. **Etapa 1 — tumor vs normal:** todas as 1.290 amostras. A métrica de seleção interna é a ROC-AUC.
+2. **Etapa 2 — tecido de origem:** os 910 tumores, em 6 classes. A métrica de seleção interna é o F1 macro.
+3. **Fluxo hierárquico:** combina as predições fora da amostra das duas etapas, como no artigo. Para os normais erroneamente chamados de tumor, o tecido é previsto por um modelo treinado com todos os tumores, que não inclui nenhum normal. O resultado é uma classificação em 7 classes (normal + 6 tecidos).
 
-**Métricas:** matriz de confusão, precisão, sensibilidade (*recall*), especificidade, F1-score, acurácia e ROC-AUC.
+**Métricas:** matriz de confusão, precisão, sensibilidade (*recall*), especificidade, F1-score, acurácia e ROC-AUC. No caso multiclasse, as métricas são calculadas por classe (um-contra-todos), e a AUC é a média macro.
 
-**Importância das features:** *permutation importance* no conjunto de teste, que mede a queda de AUC ao embaralhar cada promotor. Os promotores são anotados com o nome do gene via Ensembl.
+**Importância das features:** *permutation importance* num conjunto de teste agrupado por paciente (25% dos pacientes), com o modelo ajustado nos 75% restantes (k = 500). Mede a queda de acurácia ao embaralhar cada CpG. Os CpGs são anotados com o gene mais próximo pelo *probe map*.
 
 ---
 
 ## 5. Resultados
 
-`[[PREENCHER com as saídas do notebook]]`
+### 5.1 Etapa 1 — tumor vs normal
 
-### 5.1 Detecção: câncer vs saudável
-### 5.2 Tecido de origem: CRC vs STAD
+Acurácia de **0,984** e ROC-AUC de **0,997**. Em 4 dos 5 *folds* externos, o laço interno escolheu k = 2000.
+
+| Classe | n | Precisão | Sensibilidade | Especificidade | F1 |
+|---|---|---|---|---|---|
+| Normal | 380 | 0,969 | 0,979 | 0,987 | 0,974 |
+| Tumor | 910 | 0,991 | 0,987 | 0,979 | 0,989 |
+
+Desempenho dentro de cada tecido:
+
+| Tecido | Sensibilidade | Especificidade |
+|---|---|---|
+| Cólon | 1,000 | 0,921 |
+| Estômago | 0,993 | 0,000 (apenas 2 normais) |
+| Fígado | 0,967 | 0,960 |
+| Mama | 0,993 | 0,990 |
+| Pulmão | 0,987 | 1,000 |
+| Rim | 0,981 | 1,000 |
+
+A sensibilidade é de pelo menos 0,97 em todos os tecidos. A especificidade do estômago não tem valor estatístico, porque o TCGA tem apenas duas amostras normais gástricas.
+
+`[Figura: results/figures/tcga_etapa1.png — matriz de confusão e curva ROC]`
+
+### 5.2 Etapa 2 — tecido de origem
+
+Acurácia de **0,980**, F1 macro de **0,980** e ROC-AUC macro (um-contra-todos) de **0,999**.
+
+| Tecido | Precisão | Sensibilidade | Especificidade | F1 |
+|---|---|---|---|---|
+| Cólon | 0,979 | 0,940 | 0,996 | 0,959 |
+| Estômago | 0,929 | 0,960 | 0,986 | 0,944 |
+| Fígado | 1,000 | 1,000 | 1,000 | 1,000 |
+| Mama | 0,987 | 1,000 | 0,997 | 0,993 |
+| Pulmão | 0,993 | 0,987 | 0,999 | 0,990 |
+| Rim | 0,994 | 0,994 | 0,999 | 0,994 |
+
+Fígado, mama, pulmão e rim ficam acima de 0,99. Os erros se concentram no par **cólon ↔ estômago**.
+
+`[Figura: results/figures/tcga_etapa2.png — matriz de confusão]`
+
 ### 5.3 Fluxo hierárquico
-### 5.4 Confundidores: lote e idade
-### 5.5 Demonstração do efeito do vazamento
-### 5.6 Promotores mais relevantes
+
+Acurácia de **0,971** em 7 classes.
+- **Normais:** 372 de 380 foram classificados corretamente. Os 8 restantes foram chamados de tumor de cólon (3), estômago (2), fígado (2) e mama (1).
+- **Tumores chamados de normal:** 12 (fígado 5, rim 3, pulmão 2, estômago 1, mama 1).
+- **Maior confusão:** 9 tumores de cólon foram chamados de estômago, e 3 de estômago foram chamados de cólon.
+- **Por classe:** o F1 vai de 0,938 (estômago) a 0,990 (mama).
+
+`[Figura: results/figures/tcga_hierarquico.png]`
+
+### 5.4 CpGs mais relevantes
+
+**Etapa 2 (tecido de origem).** Os CpGs de maior importância incluem sítios associados a KANK1 (dois CpGs), ERI3, RBP5, LITAF e TCF3. O beta médio por tecido mostra padrões tecido-específicos:
+- **KANK1:** metilado no cólon (0,67–0,74), intermediário no estômago (0,23–0,27) e desmetilado nos demais (≤ 0,16). Funciona como marcador de cólon.
+- **RBP5 e LITAF:** desmetilados no fígado (0,31–0,39) e metilados nos demais tecidos. Funcionam como marcadores de fígado.
+- **ERI3 e TCF3:** baixos no cólon e altos nos demais. No ERI3, o estômago fica em posição intermediária (0,46).
+
+O **estômago ocupa uma posição intermediária entre o cólon e os demais tecidos** nesses marcadores. Isso é coerente com a confusão cólon ↔ estômago e com a origem embrionária comum dos epitélios gastrointestinais (endoderma).
+
+**Etapa 1 (tumor vs normal).** Destacam-se CpGs próximos de B3GNTL1, FAM78B, HMGA2, FMNL2, MIR646HG e COL8A1.
+
+Os valores de *permutation importance* são baixos (≤ 0,007) porque há **muitos CpGs redundantes**: retirar um único CpG não altera o modelo. Isso indica que o sinal está distribuído por muitos sítios, como confirma a auditoria a seguir.
+
+`[Figuras: results/figures/tcga_importancias_etapa2.png e tcga_heatmap_top_etapa2.png]`
+
+### 5.5 Auditoria de vazamento
+
+Desempenhos próximos de 100% exigem verificação. Cada teste abaixo usa validação cruzada agrupada por paciente (5 *folds*, k = 500).
+
+| Teste | Etapa 1 | Etapa 2 | Interpretação |
+|---|---|---|---|
+| Referência (mesmo pipeline) | acc 0,982 · AUC 0,997 | acc 0,978 · AUC 0,999 | — |
+| IDs duplicados / pacientes em treino e teste | 0 / 0 | 0 / 0 | Separação por indivíduo correta |
+| Filtro de variância ajustado só no treino | acc 0,982 | acc 0,977 | O filtro prévio não inflou o resultado |
+| 20 mil CpGs aleatórios | acc 0,988 | acc 0,980 | O sinal está espalhado pelo genoma |
+| Rótulos embaralhados | AUC 0,504 | AUC 0,503 (acc 0,18 ≈ 1/6) | O pipeline não fabrica sinal |
+| Árvore de decisão com 3 níveis | acc 0,970 | acc 0,647 | Etapa 1 quase trivial; etapa 2 exige muitos CpGs |
+| Um único CpG (árvore de 1 nível) | acc 0,905 | acc 0,331 | Um CpG separa ~90% de tumor vs normal |
+
+A auditoria **não encontrou vazamento**. O desempenho elevado reflete uma tarefa genuinamente fácil em tecido:
+- a maior parte do DNA de uma amostra tumoral vem das células tumorais;
+- cada órgão mantém um programa de metilação próprio, que persiste no tumor. A célula de origem domina a classificação molecular dos tumores (Hoadley et al., 2018).
+
+Um risco que não pode ser testado com os dados disponíveis é o **efeito de lote/placa de processamento** do TCGA associado ao tipo de câncer, porque os identificadores do Xena não trazem a placa. Esse risco é mitigado pela coerência biológica dos resultados (normais agrupados por tecido, marcadores tecido-específicos) e é registrado como limitação.
 
 ---
 
 ## 6. Parte IV — Discussão
 
-**6.1 Há diferenças de metilação capazes de separar as classes?** `[[PREENCHER]]`
+**6.1 Há diferenças de metilação capazes de separar as classes?**
+- **Em tecido, sim, e de forma muito robusta.** Tumor e normal são separados com AUC de 0,997, e os seis tecidos de origem com acurácia de 0,98. 20 mil CpGs escolhidos ao acaso produzem o mesmo resultado, e um único CpG já separa 90% das amostras tumor vs normal.
+- **No plasma, com o GSE186575, não de forma detectável para câncer vs saudável.** Nenhum promotor passou na correção para testes múltiplos, e o classificador ficou no nível do acaso. Para colorretal vs gástrico, há um sinal multivariado fraco (AUC de 0,79), sem nenhum promotor individualmente significativo.
 
-**6.2 Quais regiões contribuem mais?** `[[PREENCHER: genes do top de importância e relação com a literatura]]`
+**6.2 Quais regiões contribuem mais?**
+- **No tecido**, CpGs com padrão **tecido-específico**: KANK1 (metilado no cólon), RBP5 e LITAF (desmetilados no fígado), ERI3 e TCF3 (desmetilados no cólon). O estômago tem valores intermediários entre o cólon e os demais tecidos, o que explica a principal confusão do modelo.
+- **No plasma**, os promotores mais importantes eram majoritariamente pseudogenes ribossomais, o que sugere ruído técnico de mapeamento, e não biologia tumoral.
+- Em ambos os casos, a importância individual é baixa por causa da redundância entre features.
 
-**6.3 Desempenho e variação entre classes.** `[[PREENCHER]]`
+**6.3 Desempenho e variação entre classes.**
+- **No tecido**, fígado, mama, pulmão e rim têm F1 ≥ 0,99 na etapa 2. O cólon tem a menor sensibilidade (0,94), principalmente por confusão com o estômago, que é o par anatômica e embriologicamente mais próximo.
+- Na etapa 1, os tumores de fígado são os mais chamados de normal (sensibilidade de 0,967), e a especificidade do estômago não pode ser avaliada (2 normais).
+- **No plasma**, a detecção falha (especificidade de 0,32), e a predição de origem é moderada.
 
 **6.4 Limitações: tamanho amostral, desbalanceamento e alta dimensionalidade.**
-- Com 98 amostras e mais de 53 mil features (p ≫ n), há alto risco de sobreajuste e de associações espúrias. Isso foi mitigado pela seleção de features dentro da validação e pela CV aninhada, mas não eliminado.
-- Os intervalos de confiança são largos: com 31 controles, uma especificidade estimada em 100% é compatível, com 95% de confiança, com valores reais em torno de 89%. É impossível verificar a especificidade de 99% exigida para rastreamento.
-- O desbalanceamento é moderado (cerca de 2:1 na detecção), tratado com `class_weight="balanced"` e métricas além da acurácia.
-- Os dados vêm de um único centro, com possível lote confundido com a classe e controles mais jovens.
+- **Alta dimensionalidade (p ≫ n):** são 20 mil CpGs para 1.290 amostras no TCGA, e 53 mil promotores para 98 amostras no plasma. O risco de sobreajuste foi mitigado pela seleção dentro da validação e pela validação aninhada. No TCGA, a auditoria com rótulos embaralhados confirma que não há sinal espúrio.
+- **Desbalanceamento:**
+  - o estômago tem apenas 2 normais e a mama tinha 790 tumores;
+  - limitamos os tumores a 150 por coorte, usamos `class_weight="balanced"` e reportamos métricas por classe.
+- **Tamanho amostral no plasma:** com 31 controles, uma especificidade observada de 100% é compatível com valores reais em torno de 89% (IC de 95%). É impossível verificar os 99% exigidos para rastreamento.
+- **Confundimento:**
+  - no plasma, o lote e a idade estão associados à classe;
+  - no TCGA, não é possível descartar um efeito de lote/placa associado à coorte;
+  - os tumores do TCGA são casos já diagnosticados, sem controle de estádio.
 
 **6.5 Diferenças em relação à metodologia original.**
 
-| Aspecto | Liu et al. (2020) | Este trabalho |
-|---|---|---|
-| Amostras | 6.689 (multicêntrico, EUA) | 98 (um centro, China) |
-| Tipos de câncer | > 50 | 2 (colorretal e gástrico) |
-| Tecnologia | Bissulfito + captura direcionada (1,1 mi CpGs) | cfMeDIP-seq (imunoprecipitação) |
-| Resolução | CpG por fragmento | Sinal agregado por promotor |
-| Features | *Source models* por região | Promotores selecionados por teste F |
-| Classificador | Regressões logísticas em *ensemble* | Random Forest |
-| Limiar | Ajustado para especificidade de ~99% | 0,5 (padrão) |
-| Validação | Conjunto independente, cego, classificador travado | CV aninhada + hold-out |
-| Controles de viés | Balanceamento de centros, comparação CCGA × STRIVE | Remoção de chrX/Y, análise de lote e idade |
+| Aspecto | Liu et al. (2020) | Este trabalho — TCGA | Este trabalho — GSE186575 |
+|---|---|---|---|
+| Material | cfDNA plasmático | Tecido tumoral e normal adjacente | cfDNA plasmático |
+| Fração tumoral | Em geral < 1% | Alta (maior parte do DNA) | Em geral < 1% |
+| Amostras | 6.689 (multicêntrico, EUA) | 1.290 (919 pacientes) | 98 (um centro, China) |
+| Tipos de câncer | > 50 (TOO em ~20 sítios) | 6 | 2 |
+| Tecnologia | Bissulfito + captura direcionada | Bissulfito + array 450K | Imunoprecipitação (cfMeDIP) |
+| Resolução | CpG por fragmento (~1,1 mi CpGs) | CpG (336 mil, 20 mil usados) | Promotor (~54 mil) |
+| Features | *Source models* por região | CpGs selecionados por teste F | Promotores selecionados por teste F |
+| Classificador | Regressões logísticas em *ensemble* | Random Forest | Random Forest |
+| Limiar | Fixado para especificidade de ~99% | 0,5 / maior probabilidade | 0,5 |
+| Validação | Conjunto independente, cego, classificador travado | CV aninhada agrupada por paciente | CV aninhada estratificada |
+| Detecção | Especificidade 99,3%; sensibilidade 55% (I–IV) | AUC 0,997 (tumor vs normal) | AUC 0,55 |
+| Tecido de origem | Acurácia de 93% | Acurácia de 0,98 (6 classes) | AUC de 0,79 (2 classes) |
+
+A comparação mais importante é entre as colunas: **a assinatura de metilação é forte na fonte (o tumor), mas fica diluída no plasma**. Lá, a fração tumoral é pequena e o sinal é facilmente superado por variação técnica e demográfica. O artigo vence essa distância com três recursos:
+- escala de milhares de participantes;
+- sequenciamento direcionado profundo;
+- leitura do padrão de metilação molécula a molécula, que permite identificar fragmentos tumorais raros em meio ao DNA sanguíneo.
+
+O experimento em tecido também tem valor próprio. Classificadores de metilação em tecido são usados na prática para identificar a origem de **cânceres de sítio primário desconhecido**, que respondem por 3–5% dos cânceres (Moran et al., 2016), e para classificar tumores do sistema nervoso central (Capper et al., 2018). Além disso, o experimento funciona como **controle positivo** do pipeline: mostra que o método funciona quando o sinal existe. Assim, a falha no plasma pode ser atribuída aos dados, e não ao método.
 
 **6.6 Por que o resultado não pode ser interpretado como um teste clínico de detecção precoce.**
-1. **Desenho caso-controle:** os pacientes já tinham diagnóstico e muitos eram sintomáticos. Um teste de rastreamento precisa ser avaliado numa população assintomática, onde a prevalência é baixa (cerca de 1,3% ao ano) e o valor preditivo positivo depende fortemente da especificidade.
-2. **Especificidade não mensurável:** com 31 controles, não é possível demonstrar uma taxa de falsos positivos abaixo de 1%.
-3. **Ausência de validação externa:** não houve conjunto independente de outro centro ou lote, e há evidência de confundimento por lote e idade.
-4. **Só dois tipos de câncer**, ambos gastrointestinais. O teste não foi avaliado contra outros cânceres nem contra doenças benignas que alteram o cfDNA (inflamação, por exemplo).
-5. **Sem estratificação por estádio** com poder suficiente: a detecção precoce depende do desempenho no estádio I, onde a fração tumoral é mínima.
-6. **Sem limiar pré-especificado nem classificador travado** antes da avaliação.
-7. Não há demonstração de **benefício clínico**, como redução de mortalidade, nem análise de custos e danos.
+1. **Material inadequado:** o experimento principal usa **tecido**, cuja obtenção já exige uma biópsia, ou seja, já pressupõe a suspeita de uma lesão. Um teste de rastreamento precisa funcionar no sangue.
+2. **Desenho caso-controle:** os pacientes já tinham diagnóstico. Um teste de rastreamento precisa ser avaliado numa população assintomática, onde a prevalência é baixa (cerca de 1,3% ao ano) e o valor preditivo positivo depende fortemente da especificidade.
+3. **Especificidade não demonstrada na escala necessária:** com algumas centenas de normais (ou 31 controles, no plasma), não é possível demonstrar uma taxa de falsos positivos abaixo de 1%.
+4. **Ausência de validação externa, cega e prospectiva**, e de um classificador travado antes da avaliação. Há ainda possíveis efeitos de lote não testáveis.
+5. **Poucos tipos de câncer** e nenhum controle com doenças benignas que alteram a metilação (inflamação, por exemplo).
+6. **Sem estratificação por estádio:** a detecção precoce depende do desempenho no estádio I, em que a fração tumoral no plasma é mínima.
+7. **Sem demonstração de benefício clínico**, como redução de mortalidade, nem análise de custos e danos.
 
 ---
 
 ## 7. Conclusão
 
-`[[PREENCHER]]`
+Este trabalho reproduziu, em pequena escala e com dados públicos, a estrutura de classificação em duas etapas de Liu et al. (2020).
+
+**Tecido (TCGA).** A metilação do DNA separa tumor de tecido normal (AUC de 0,997) e identifica o tecido de origem entre seis tipos de câncer (acurácia de 0,98) com um Random Forest simples. A validação aninhada foi agrupada por paciente, e a seleção supervisionada ficou restrita ao treino. Uma auditoria confirmou que o desempenho não decorre de vazamento: a assinatura de tecido é forte e distribuída por todo o genoma. Os CpGs mais informativos têm padrões tecido-específicos, e a principal confusão (cólon ↔ estômago) é biologicamente coerente.
+
+**Plasma (GSE186575).** Com dados públicos de cfDNA, a detecção de câncer não foi possível: efeitos de lote e idade superaram o sinal tumoral.
+
+**Contraste.** Essa diferença ilustra o desafio central que o artigo enfrenta. Detectar câncer no sangue exige recuperar um sinal raro e diluído, e isso só se torna viável com grande escala amostral, sequenciamento direcionado de alta profundidade, leitura por fragmento e validação independente e cega. Por fim, a demonstração com rótulos aleatórios (AUC de 0,84 com seleção fora da validação, contra 0,27 com seleção dentro) mostra concretamente por que a prevenção de vazamento é indispensável em dados com muito mais features do que amostras.
 
 ---
 
 ## Registro das fontes, classes e validação
 
-| Item | Descrição |
-|---|---|
-| Dados de metilação | GEO GSE186575: `GSE186575_DNA-Met_CPM_matrix_promoter.txt.gz` e `GSE186575_series_matrix.txt.gz` (FTP público do NCBI) |
-| Anotação de genes | Ensembl BioMart (GRCh38): ID do gene, nome, cromossomo, biotipo |
-| Classes | NC = saudável (31); CRC = câncer colorretal (32); STAD = câncer gástrico (35). Detecção: CRC+STAD vs NC. TOO: CRC vs STAD |
-| Validação | Nested CV (externa: 5 folds estratificados × 3 repetições; interna: 5 folds) + hold-out estratificado 70/30; seleção de features dentro do pipeline; uma amostra por indivíduo |
+| Item | Experimento principal — TCGA (tecido) | Avaliação experimental — GSE186575 (plasma) |
+|---|---|---|
+| Dados de metilação | UCSC Xena: `TCGA.{COAD,STAD,LUAD,LIHC,BRCA,KIRC}.sampleMap/HumanMethylation450.gz` | GEO: `GSE186575_DNA-Met_CPM_matrix_promoter.txt.gz` e `GSE186575_series_matrix.txt.gz` (FTP do NCBI) |
+| Anotação | *Probe map* `illuminaMethyl450_hg19_GPL16304_TCGAlegacy` (CpG → gene, cromossomo) | Ensembl BioMart (GRCh38): gene, cromossomo, biotipo |
+| Classes | Etapa 1: tumor primário (`01`, n = 910) vs normal adjacente (`11`, n = 380). Etapa 2: cólon, estômago, pulmão, fígado, mama, rim (150–160 tumores cada) | Detecção: câncer (CRC 32 + gástrico 35) vs saudável (31). Origem: CRC vs gástrico |
+| Validação | CV aninhada com `StratifiedGroupKFold` agrupado por paciente (externa 5, interna 3); seleção de features dentro do pipeline; auditoria de vazamento | CV aninhada estratificada (externa 5 × 3 repetições, interna 5); seleção dentro do pipeline; uma amostra por indivíduo |
+| Reprodução | `notebooks/trabalho_final.ipynb`, seção 3 | `notebooks/trabalho_final.ipynb`, seção 4 |
 
 ---
 
@@ -301,9 +446,12 @@ Usamos 500 árvores e `class_weight="balanced"` para compensar o desbalanceament
 6. Shen, S. Y. et al. (2018). Sensitive tumour detection and classification using plasma cell-free DNA methylomes. *Nature*, 563, 579–583.
 7. Zeng et al. (2026). A pan-cancer compendium of 1,294 plasma cell-free DNA methylomes and fragmentomes enabling multicancer detection. *Nature Cancer*. doi:10.1038/s43018-026-01116-3
 8. Goldman, M. J. et al. (2020). Visualizing and interpreting cancer genomics data via the Xena platform. *Nature Biotechnology*, 38, 675–678.
-9. Breiman, L. (2001). Random Forests. *Machine Learning*, 45, 5–32.
-10. Varma, S. & Simon, R. (2006). Bias in error estimation when using cross-validation for model selection. *BMC Bioinformatics*, 7, 91.
-11. Ambroise, C. & McLachlan, G. J. (2002). Selection bias in gene extraction on the basis of microarray gene-expression data. *PNAS*, 99(10), 6562–6566.
-12. Leek, J. T. et al. (2010). Tackling the widespread and critical impact of batch effects in high-throughput data. *Nature Reviews Genetics*, 11, 733–739.
-13. Johnson, W. E., Li, C. & Rabinovic, A. (2007). Adjusting batch effects in microarray expression data using empirical Bayes methods. *Biostatistics*, 8(1), 118–127.
-14. Pedregosa, F. et al. (2011). Scikit-learn: Machine Learning in Python. *JMLR*, 12, 2825–2830.
+9. Hoadley, K. A. et al. (2018). Cell-of-origin patterns dominate the molecular classification of 10,000 tumors from 33 types of cancer. *Cell*, 173(2), 291–304.
+10. Moran, S. et al. (2016). Epigenetic profiling to classify cancer of unknown primary: a multicentre, retrospective analysis. *Lancet Oncology*, 17(10), 1386–1395.
+11. Capper, D. et al. (2018). DNA methylation-based classification of central nervous system tumours. *Nature*, 555, 469–474.
+12. Breiman, L. (2001). Random Forests. *Machine Learning*, 45, 5–32.
+13. Varma, S. & Simon, R. (2006). Bias in error estimation when using cross-validation for model selection. *BMC Bioinformatics*, 7, 91.
+14. Ambroise, C. & McLachlan, G. J. (2002). Selection bias in gene extraction on the basis of microarray gene-expression data. *PNAS*, 99(10), 6562–6566.
+15. Leek, J. T. et al. (2010). Tackling the widespread and critical impact of batch effects in high-throughput data. *Nature Reviews Genetics*, 11, 733–739.
+16. Johnson, W. E., Li, C. & Rabinovic, A. (2007). Adjusting batch effects in microarray expression data using empirical Bayes methods. *Biostatistics*, 8(1), 118–127.
+17. Pedregosa, F. et al. (2011). Scikit-learn: Machine Learning in Python. *JMLR*, 12, 2825–2830.

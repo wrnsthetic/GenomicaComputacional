@@ -32,13 +32,13 @@
 | Tentativa — plasma (GSE186575) | Câncer vs saudável | AUC **0,55** ± 0,18 (acaso) |
 | Tentativa — plasma (GSE186575) | Colorretal vs gástrico | AUC **0,79** ± 0,14 |
 
-**Próximo passo:** validar o notebook final no Colab e reestruturar o relatório (ver seção 12).
+**Próximo passo:** validar o notebook final no Colab, converter o relatório para LaTeX e montar os slides (ver seção 12).
 
 ---
 
 ## 1. Entregáveis
 
-- [~] **Relatório técnico** (`relatorio/relatorio.md`, depois LaTeX/Overleaf → PDF). O rascunho existe, mas ainda trata o GSE186575 como principal: **precisa ser reestruturado** (ver 12).
+- [x] **Relatório técnico** (`relatorio/relatorio.md`): reestruturado com o TCGA como Parte III e o plasma como avaliação experimental na Parte II (3.3). Resultados, Parte IV e conclusão estão preenchidos. Falta converter para LaTeX/Overleaf → PDF.
 - [x] **Notebook Colab reproduzível único** (`notebooks/trabalho_final.ipynb`, gerado por `scripts/build_final_notebook.py`): TCGA como experimento principal (com auditoria), seção de tentativa em plasma, comparação e conclusões. Executado de ponta a ponta localmente; falta testar no Colab.
 - [x] **Registro de fontes, classes e validação:** seção 10 deste arquivo (vai para o relatório e para o início do notebook).
 
@@ -438,7 +438,7 @@ GenomicaComputacional/
 **Pendente (em ordem):**
 1. [x] **Notebook final** `notebooks/trabalho_final.ipynb`: registro de fontes/classes/validação → contexto e Parte II → **TCGA** (dados, PCA, pipeline, etapa 1, etapa 2, hierárquico, importâncias, auditoria) → **tentativa com plasma** (confundidores, FDR, nested CV, lote/idade, demonstração de vazamento) → comparação → conclusões.
 2. [ ] **Validar o notebook final no Google Colab gratuito** (memória e tempo; o download do TCGA leva alguns minutos).
-3. [ ] **Reestruturar o relatório:** TCGA como Parte III principal; plasma como subseção da Parte II ("avaliação experimental"); preencher resultados, Parte IV (seção 7), conclusão e as novas referências (Hoadley 2018, Moran 2016, Capper 2018).
+3. [x] **Reestruturar o relatório:** TCGA como Parte III principal; plasma como subseção da Parte II ("avaliação experimental"); preencher resultados, Parte IV (seção 7), conclusão e as novas referências (Hoadley 2018, Moran 2016, Capper 2018).
 4. [ ] Converter o relatório para LaTeX (Overleaf).
 5. [ ] Montar os slides (seção 14).
 6. [ ] (Opcional) Repositório no GitHub e ajuste de `REPO_URL` nos notebooks.
