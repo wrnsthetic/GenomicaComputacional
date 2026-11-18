@@ -387,6 +387,8 @@ No plasma, o sexo dominava o PCA, e o grupo gástrico era 77% masculino: o model
 | D13 | Manter a tentativa em plasma e a demonstração de vazamento no trabalho final | Omitir | Evidência para as perguntas 11, 14 e 16; mostra a prevenção de vazamento, critério central | Vigente |
 | D14 | Relatório em LaTeX (Overleaf) → PDF | Word | Preferência do autor | Vigente |
 | D15 | Não contrastar "vazamento × confundimento" como seção no relatório | Seção didática | O professor já domina a diferença; basta citar os confundidores | Vigente |
+| D16 | Dados tratados numa pasta pública do Google Drive, baixados via `gdown`; fontes originais como fallback | Só fontes originais; Drive montado | Evita baixar e processar 2,7 GB no Colab (~15 min a menos) sem perder a reprodutibilidade | Vigente |
+| D17 | Repositório público no GitHub (wrnsthetic/GenomicaComputacional), sem os PDFs do enunciado e do artigo (removidos também do histórico) | Repositório privado | Entrega e apresentação por clone; PDFs são material da disciplina/editora | Vigente |
 
 ---
 
@@ -421,7 +423,7 @@ GenomicaComputacional/
 ```
 
 - **Ambiente local:** `.venv` com Python 3.13. Tempo de execução: EDA do plasma ~1 min; modelagem do plasma ~12 min; TCGA ~7 min com os downloads prontos; auditoria ~10 min.
-- **Git:** só local. Repositório no GitHub adiado; o envio pode ser feito de outras formas.
+- **Git:** https://github.com/wrnsthetic/GenomicaComputacional (público). Os PDFs de `docs/` não são versionados.
 - **Download robusto:** o notebook do TCGA baixa para um arquivo `.part` e só renomeia no fim. Isso foi motivado pela queda de conexão durante o download do KIRC.
 
 ---
@@ -445,12 +447,17 @@ GenomicaComputacional/
    - números idênticos aos do plano;
    - **pico de memória de 6,1 GB** (o Colab gratuito tem ~12,7 GB).
    - Corrigido no caminho: `M.var()` do pandas na matriz inteira chegava a 13,7 GB. Agora a variância é calculada em blocos de colunas, e a matriz é sempre relida do cache parquet. Os valores e a seleção de CpGs são idênticos.
+   - **Dados tratados no Google Drive (decisão D16):** pasta pública (leitor), em https://drive.google.com/drive/folders/1PKbiUFQM2cswK3ShJszUrZzyWwDokuBR.
+     - Tem 6 arquivos: matriz do TCGA tratada (parquet, 814 MB), mapa amostra → coorte, probe map, os 2 arquivos do GSE186575 e a anotação do Ensembl.
+     - O notebook baixa esses arquivos com `gdown`, sem login. O teste numa pasta vazia baixou tudo em 36 s, sem precisar de nenhum `.gz` do TCGA, com números idênticos.
+     - Fallback: `MONTAR_DRIVE = True` (drive.mount); se tudo falhar, as fontes originais.
+     - Para regenerar a pasta: `data/para_drive/` (fora do git).
    - **Para rodar no Colab:** basta subir só o `.ipynb` (Arquivo → Fazer upload) e fazer *Executar tudo*. Não precisa de Drive nem de GitHub. O que falta é só o teste real no Colab, pelo autor. O tempo estimado é de 40–90 min, porque o Colab tem 2 CPUs e o local leva ~15 min com os dados prontos.
    - Os resultados ficam em `/content/results/` e somem quando a sessão fecha.
 3. [x] **Reestruturar o relatório:** TCGA como Parte III principal; plasma como subseção da Parte II ("avaliação experimental"); preencher resultados, Parte IV (seção 7), conclusão e as novas referências (Hoadley 2018, Moran 2016, Capper 2018).
 4. [x] Converter o relatório para LaTeX: `python scripts/md_to_latex.py` gera `relatorio/latex/`. Para usar no Overleaf: compactar a pasta `relatorio/latex/` em .zip, fazer *New Project → Upload Project* e compilar com pdfLaTeX. **Não foi compilado localmente** (sem LaTeX instalado), então conferir o primeiro build no Overleaf. Editar sempre o `.md` e regenerar, ou passar a editar só no Overleaf; não misturar os dois.
 5. [ ] Montar os slides (seção 14).
-6. [ ] (Opcional) Repositório no GitHub e ajuste de `REPO_URL` nos notebooks.
+6. [x] Repositório no GitHub: https://github.com/wrnsthetic/GenomicaComputacional (público; PDFs fora).
 
 **Conferência deste plano (18/11/2026):**
 - Todos os números das seções 4, 5 e 6 foram conferidos contra as saídas dos notebooks `02_modelagem_rf`, `03_tcga_rf`, as tabelas em `results/tables/` e a saída da `auditoria_tcga.py`.

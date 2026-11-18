@@ -12,3 +12,9 @@ data/raw/*.tar
 Thumbs.db
 .vscode/
 data/processed/*.parquet
+
+# cópia dos dados tratados para subir no Google Drive
+data/para_drive/
+
+# PDFs do enunciado e do artigo (material da disciplina/editora): só local
+docs/*.pdf

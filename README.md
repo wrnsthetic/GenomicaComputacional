@@ -12,7 +12,7 @@ O artigo usa dados privados (estudos CCGA/STRIVE, da GRAIL). Aqui construímos u
 
 ```
 ├── PLANO_EXECUCAO.md        # plano, status das etapas e log de decisões
-├── docs/                    # enunciado e artigo de referência (PDF)
+├── docs/                    # enunciado e artigo (PDFs não versionados: material da disciplina/editora)
 ├── notebooks/
 │   ├── trabalho_final.ipynb # notebook de ENTREGA (roda no Colab)
 │   └── exploracao/          # notebooks de teste/rascunho
@@ -29,7 +29,11 @@ O artigo usa dados privados (estudos CCGA/STRIVE, da GRAIL). Aqui construímos u
 
 ## Como rodar
 
-**Google Colab:** abrir `notebooks/trabalho_final.ipynb` direto do GitHub (Arquivo → Abrir notebook → GitHub). Os dados que faltarem são baixados automaticamente (TCGA via UCSC Xena, ~2,7 GB; GEO via FTP). Tempo total: ~35–60 min no Colab gratuito; a auditoria pode ser desligada com `RODAR_AUDITORIA = False`.
+**Google Colab:** abrir `notebooks/trabalho_final.ipynb` direto do GitHub (Arquivo → Abrir notebook → GitHub) e executar tudo. Não precisa subir nada:
+- por padrão, os dados já tratados (~860 MB) são baixados de uma pasta pública do Google Drive via `gdown`, sem login;
+- se o Drive falhar (ou com `USAR_DRIVE = False`), tudo é baixado das fontes originais (TCGA via UCSC Xena, ~2,7 GB; GEO; Ensembl) e processado do zero.
+
+Tempo estimado: ~30–50 min no Colab gratuito (pico de memória ~6 GB). A auditoria pode ser desligada com `RODAR_AUDITORIA = False`.
 
 **Local:**
 ```bash
@@ -46,3 +50,6 @@ jupyter notebook notebooks/trabalho_final.ipynb
 | TCGA 450K: COAD, STAD, LUAD, LIHC, BRCA, KIRC + probe map | [UCSC Xena](https://xenabrowser.net/datapages/) | Público |
 | GSE186575 (cfMeDIP-seq de plasma: CRC, gástrico, saudáveis) | [NCBI GEO](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE186575) | Público |
 | Anotação de genes (hg38) | [Ensembl BioMart](https://www.ensembl.org/biomart) | Público |
+| Dados já tratados (cópia para agilizar o Colab) | [Google Drive](https://drive.google.com/drive/folders/1PKbiUFQM2cswK3ShJszUrZzyWwDokuBR) | Público (leitura) |
+
+Artigo de referência: Liu et al. (2020), doi:[10.1016/j.annonc.2020.02.011](https://doi.org/10.1016/j.annonc.2020.02.011).

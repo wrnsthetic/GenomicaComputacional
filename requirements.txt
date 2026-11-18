@@ -8,3 +8,4 @@ pyarrow>=14
 # só para gerar/rodar notebooks localmente
 nbformat>=5.9
 jupyter
+gdown>=5.2

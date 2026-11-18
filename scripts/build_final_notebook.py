@@ -30,7 +30,7 @@ Este notebook é a parte prática do trabalho (Parte III do enunciado). Ele é *
 5. Comparação tecido × plasma × artigo
 6. Conclusões
 
-> **Tempo de execução:** ~35–60 min no Colab gratuito (o download do TCGA, ~2,7 GB, leva parte disso). A auditoria (seção 3.8) pode ser desligada com `RODAR_AUDITORIA = False`."""),
+> **Tempo de execução:** ~40–90 min no Colab gratuito baixando tudo (~2,7 GB do TCGA); bem menos usando os dados tratados da pasta pública do Google Drive (padrão; ver célula de configuração). A auditoria (seção 3.8) pode ser desligada com `RODAR_AUDITORIA = False`."""),
     md(r"""## 1. Registro de fontes, classes e validação
 
 | Item | **Experimento principal — TCGA (tecido)** | **Tentativa — GSE186575 (plasma)** |
@@ -64,7 +64,9 @@ Este notebook é a parte prática do trabalho (Parte III do enunciado). Ele é *
     # ------------------------------------------------------------------ setup
     md(r"""### Configuração do ambiente
 
-No Colab, o repositório é clonado (se `REPO_URL` estiver preenchido); localmente, a raiz é encontrada procurando o `PLANO_EXECUCAO.md`. Sem o repositório, o notebook cria as pastas e baixa tudo sozinho."""),
+Localmente, a raiz é encontrada procurando o `PLANO_EXECUCAO.md`. No Colab, as pastas são criadas em `/content`.
+
+**Dados:** para economizar tempo, os dados já tratados (matriz do TCGA e arquivos do plasma, ~860 MB) são baixados de uma **pasta pública do Google Drive** (`LINK_DRIVE`, sem login). Se o Drive falhar — ou com `USAR_DRIVE = False` — tudo é baixado das **fontes originais** (UCSC Xena, GEO, Ensembl) e processado do zero nas células seguintes: o notebook continua reprodutível sem o Drive."""),
     code(r"""import sys, gzip, time, urllib.parse, urllib.request, warnings
 from pathlib import Path
 
@@ -85,6 +87,47 @@ TCGA = RAW / "tcga"
 FIG, TAB = ROOT / "results" / "figures", ROOT / "results" / "tables"
 for d in (RAW, REF, PROC, TCGA, FIG, TAB):
     d.mkdir(parents=True, exist_ok=True)
+
+# Atalho: dados já tratados numa pasta PÚBLICA do Google Drive (evita baixar e processar 2,7 GB do TCGA).
+# Ordem de tentativa: (1) link público via gdown, sem login; (2) Drive montado da própria conta (opcional);
+# (3) se nada der certo, as células seguintes baixam tudo das fontes originais (Xena, GEO, Ensembl).
+USAR_DRIVE = True
+LINK_DRIVE = "https://drive.google.com/drive/folders/1PKbiUFQM2cswK3ShJszUrZzyWwDokuBR"
+MONTAR_DRIVE = False   # True: usa drive.mount (pede autorização) em vez do link público
+PASTA_DRIVE = "/content/drive/MyDrive/Datasets/GenomicaComputacional"
+ARQUIVOS_DRIVE = {"tcga_6coortes_completa.parquet": PROC, "tcga_amostras_coorte.tsv": PROC,
+                  "probeMap_450k.tsv": TCGA, "GSE186575_DNA-Met_CPM_matrix_promoter.txt.gz": RAW,
+                  "GSE186575_series_matrix.txt.gz": RAW, "ensembl_genes_hg38.tsv": REF}
+
+def obter_do_drive():
+    faltam = [n for n, d in ARQUIVOS_DRIVE.items() if not (d / n).exists()]
+    if not faltam:
+        return
+    if IN_COLAB and MONTAR_DRIVE:
+        import shutil
+        from google.colab import drive
+        drive.mount("/content/drive")
+        for n in faltam:
+            if (Path(PASTA_DRIVE) / n).exists():
+                print("copiando do Drive:", n, flush=True)
+                shutil.copy(Path(PASTA_DRIVE) / n, ARQUIVOS_DRIVE[n] / n)
+        return
+    try:
+        import gdown
+        for arq in gdown.download_folder(LINK_DRIVE, skip_download=True, quiet=True):
+            n = Path(arq.path).name
+            if n in faltam:
+                print("baixando do Drive público:", n, flush=True)
+                tmp = ARQUIVOS_DRIVE[n] / (n + ".part")
+                gdown.download(id=arq.id, output=str(tmp), quiet=True)
+                tmp.rename(ARQUIVOS_DRIVE[n] / n)
+    except Exception as e:
+        print(f"Drive indisponível ({type(e).__name__}); os dados virão das fontes originais")
+
+if USAR_DRIVE:
+    if IN_COLAB:
+        !pip install -q "gdown>=5.2"
+    obter_do_drive()
 
 import numpy as np
 import pandas as pd
@@ -141,10 +184,16 @@ def metricas_por_classe(y_true, y_pred, classes):
     code(r"""XENA = "https://tcga-xena-hub.s3.us-east-1.amazonaws.com/download"
 COORTES = {"COAD": "cólon", "STAD": "estômago", "LUAD": "pulmão", "LIHC": "fígado", "BRCA": "mama", "KIRC": "rim"}
 
+CACHE = PROC / "tcga_6coortes_completa.parquet"   # matriz tratada (CpGs nas linhas: poucas colunas = parquet rápido)
+AMOSTRAS = PROC / "tcga_amostras_coorte.tsv"       # amostra -> coorte de origem
+
 probemap_path = baixar(f"{XENA}/probeMap%2FilluminaMethyl450_hg19_GPL16304_TCGAlegacy", TCGA / "probeMap_450k.tsv")
-for c in COORTES:
-    p = baixar(f"{XENA}/TCGA.{c}.sampleMap%2FHumanMethylation450.gz", TCGA / f"TCGA.{c}.HumanMethylation450.gz")
-    print(f"{c}: {p.stat().st_size/1e6:.0f} MB")"""),
+if CACHE.exists() and AMOSTRAS.exists():
+    print("matriz tratada já disponível; arquivos brutos do TCGA não são necessários")
+else:
+    for c in COORTES:
+        p = baixar(f"{XENA}/TCGA.{c}.sampleMap%2FHumanMethylation450.gz", TCGA / f"TCGA.{c}.HumanMethylation450.gz")
+        print(f"{c}: {p.stat().st_size/1e6:.0f} MB")"""),
     md(r"""**Amostragem (decisão D11).** Para equilibrar as classes e caber na memória do Colab:
 - **todas** as amostras normais (`11`) — são a classe rara;
 - os tumores **pareados** desses normais (mesmo paciente);
@@ -155,7 +204,7 @@ for c in COORTES:
 2. Remoção de CpGs com qualquer valor ausente (NaN).
 3. Filtro **não supervisionado** (não usa rótulos): os **20 mil CpGs de maior variância**. A seleção *supervisionada* fica dentro da validação (3.3). A auditoria (3.8) mostra que aplicar esse filtro dentro de cada fold dá o mesmo resultado.
 
-A leitura é feita em blocos de 50 mil linhas e em `float32` para economizar memória. A matriz completa fica em cache (`data/processed/`)."""),
+A leitura é feita em blocos de 50 mil linhas e em `float32` para economizar memória. A matriz tratada fica em cache (`data/processed/`); se ela já existir (ou vier do Drive), toda esta etapa é pulada."""),
     code(r"""MAX_TUMOR = 150
 pm = pd.read_csv(probemap_path, sep="\t", index_col=0)
 probes_auto = set(pm.index[pm["chrom"].isin({f"chr{i}" for i in range(1, 23)})])
@@ -182,7 +231,6 @@ def ler_coorte(c, rng):
                                     usecols=["sample"] + sel, dtype={s: np.float32 for s in sel}, chunksize=50_000)]
     return pd.concat(blocos)
 
-CACHE = PROC / "tcga_6coortes_completa.parquet"   # salva CpGs nas linhas (poucas colunas = parquet rápido)
 if not CACHE.exists():
     rng = np.random.default_rng(RANDOM_STATE)
     mats = {}
@@ -195,6 +243,9 @@ if not CACHE.exists():
     print(f"CpGs com algum NaN (removidos): {nan.sum()}")
     M.loc[:, ~nan].T.to_parquet(CACHE)
     del M; import gc; gc.collect()
+if not AMOSTRAS.exists():
+    (pd.Series({s: c for c in COORTES for s in cabecalho(c)}, name="coorte").rename_axis("amostra")
+       .to_csv(AMOSTRAS, sep="\t"))
 # sempre relê do cache: a matriz sai contígua em float32 (a montada acima é fragmentada e dobra o uso de memória)
 M = pd.read_parquet(CACHE).T
 print("matriz completa (sem NaN):", M.shape, M.dtypes.iloc[0])
@@ -204,7 +255,7 @@ variancia = pd.concat([M.iloc[:, j:j + 20_000].var() for j in range(0, M.shape[1
 top20k = variancia.sort_values(ascending=False).index[:20_000]
 X = M[top20k]
 print("X (top 20 mil por variância):", X.shape)"""),
-    code(r"""origem = {s: c for c in COORTES for s in cabecalho(c)}
+    code(r"""origem = pd.read_csv(AMOSTRAS, sep="\t", index_col=0)["coorte"]
 meta = pd.DataFrame(index=X.index)
 meta["paciente"] = meta.index.str[:12]
 meta["tipo"] = np.where(meta.index.str[13:15] == "11", "normal", "tumor")
