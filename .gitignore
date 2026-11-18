@@ -1,0 +1,13 @@
+# Ambiente
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+
+# Dados grandes baixados sob demanda pelo notebook (TCGA tem centenas de MB por coorte)
+data/raw/tcga/
+data/raw/*.tar
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.vscode/
