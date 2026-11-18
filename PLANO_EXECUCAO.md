@@ -490,31 +490,44 @@ GenomicaComputacional/
 
 ---
 
-## 14. Protótipo da sequência de slides (apresentação do relatório técnico)
+## 14. Roteiro dos slides (versão enxuta)
 
-> Cerca de 15 a 18 slides, para uns 15 minutos. Entre colchetes, a figura ou tabela já gerada em `results/figures/` ou `results/tables/`.
+> **11 slides, cerca de 12 a 15 minutos.**
+> - Sem slides de fundamentos (CpG, metilação, cfDNA): a turma já domina. A biologia aparece só em uma frase, quando explica um resultado.
+> - O artigo ocupa 2 slides; o plasma, 1; a exploração (PCA) foi para o apêndice.
+> - Entre colchetes, a figura ou tabela já gerada em `results/`.
 
-| # | Título | Conteúdo | Visual |
-|---|---|---|---|
-| 1 | **Detecção de câncer por metilação do DNA** | Título, autor, disciplina, artigo de referência | — |
-| 2 | **O problema** | Câncer é diagnosticado tarde; rastreamento existe para poucos tipos; proposta: um exame de sangue para vários cânceres e seu órgão de origem | Ícones: sangue → câncer? → órgão? |
-| 3 | **Metilação do DNA e câncer** | CpG, ilhas CpG, silenciamento; hipometilação global e hipermetilação de promotores; padrão específico de cada tecido | Esquema de um CpG metilado/não metilado |
-| 4 | **cfDNA e biópsia líquida** | Fragmentos no plasma; ctDNA < 1% em estádio inicial; por que a metilação dá detecção e tecido de origem | Esquema: tecidos → sangue → fragmentos |
-| 5 | **O artigo: desenho do estudo** | CCGA + STRIVE; 6.689 participantes; tabela treino/validação; bissulfito + painel de 1,1 milhão de CpGs | Tabela 2.2 |
-| 6 | **O artigo: classificação e resultados** | Duas etapas (detecção → TOO); *source models* + regressões logísticas; especificidade 99,3%; sensibilidade por estádio; TOO 93% | Tabela 2.3 + barras de sensibilidade por estádio |
-| 7 | **Salvaguardas contra vazamento no artigo** | Validação travada e cega; equipe independente; centros removidos; CCGA × STRIVE; riscos residuais | Lista |
-| 8 | **Busca de dados públicos** | CCGA/STRIVE indisponíveis (`ipdSharing: NO`); público × controlado; 6 candidatos avaliados; **escolha: TCGA (tecido) como principal, GSE186575 (plasma) como tentativa** | Tabela 3.2 resumida |
-| 9 | **Experimento principal: TCGA** | 6 tecidos, 1.290 amostras, 919 pacientes, beta values 450K; tecido ≠ plasma (problema redefinido para classificação de tecido) | Tabela 4.1 |
-| 10 | **Pipeline sem vazamento** | Filtro não supervisionado → SelectKBest no pipeline → RF; nested CV **agrupada por paciente** | Diagrama do pipeline + esquema dos folds |
-| 11 | **Exploração: tecidos têm assinatura** | Normais agrupados por tecido; tumores dispersos | [tcga_pca.png] |
-| 12 | **Resultados: tumor vs normal** | acc 0,984 · AUC 0,997; por tecido; estômago com 2 normais | [tcga_etapa1.png] + tabela por tecido |
-| 13 | **Resultados: tecido de origem e hierárquico** | acc 0,980 (6 classes); hierárquico 0,971; confusão cólon ↔ estômago | [tcga_etapa2.png] / [tcga_hierarquico.png] |
-| 14 | **O que o modelo aprendeu** | KANK1 (cólon), RBP5/LITAF (fígado), estômago intermediário | [tcga_heatmap_top_etapa2.png] |
-| 15 | **"Bom demais?" Auditoria de vazamento** | CpGs aleatórios = mesmo resultado; rótulos embaralhados = 0,50; 1 CpG = 90%; por que um experimento "fácil" importa (CUP, controle positivo) | Tabela 4.5 |
-| 16 | **Tentativa: plasma (GSE186575)** | Primeiro dataset escolhido (mais parecido com o artigo); 98 amostras, cfMeDIP; o EDA revela sexo, lote "mix" e idade | [eda_pca.png] + [eda_pca_autossomos.png] |
-| 17 | **Por que o plasma falhou** | Detecção AUC 0,55; idade sozinha 0,70; 0 promotores com FDR; 526 por lote; demonstração de vazamento (0,84 com × 0,27 sem); decisão de troca | Tabela 5.4 + barras "câncer vs lote" |
-| 18 | **Tecido × plasma × artigo** | Por que é fácil no tecido e difícil no sangue; o que o artigo faz para vencer isso | Tabela 6 |
-| 19 | **Limitações e por que não é teste clínico** | Perguntas 14 e 16 resumidas | Lista |
-| 20 | **Conclusão** | A assinatura existe na fonte; no plasma exige escala e tecnologia; prevenção de vazamento verificada; uso real (CUP) | Frase-síntese |
+| # | Título | Conteúdo (o essencial) | Visual | Pontos do enunciado |
+|---|---|---|---|---|
+| 1 | **Detecção de câncer e tecido de origem por metilação do DNA** | Título, autor, disciplina, artigo de referência | — | — |
+| 2 | **O artigo: dados** | **CCGA**: casos de câncer e parte dos controles, multicêntrico. **STRIVE**: controles extras, para medir especificidade acima de 99%. Tabela treino/validação (6.689). **Tecnologia**: cfDNA → bissulfito → captura direcionada (Twist) → NovaSeq; lê cada CpG em cada fragmento. **Regiões**: WGBS do 1º sub-estudo + arrays do TCGA → 103.456 regiões, cerca de 1,1 milhão de CpGs | Tabela 2.2 + fluxo em uma linha | 1, 2, 3 |
+| 3 | **O artigo: classificação e vazamento** | **Duas etapas**: detecção (câncer vs não) → tecido de origem nos positivos. *Source models* por região → regressões logísticas. **Resultados**: especificidade 99,3%; sensibilidade 18% (I) a 93% (IV); TOO 93%. **Salvaguardas**: validação independente, cega e travada. **Riscos**: STRIVE só com mulheres de um centro; várias amostras por pessoa | Esquema de 2 etapas + 3 números | 4 + estratégia |
+| 4 | **Dados públicos: o que dá para usar?** | CCGA/STRIVE indisponíveis (dados privados, `ipdSharing: NO`; acesso controlado ≠ público). Tabela de 6 candidatos reduzida a 4 colunas (material, tecnologia, n, viabilidade). **Escolha: TCGA**, porque tem bissulfito por CpG, 6 tecidos, normais pareados e o ID do paciente. Aviso em destaque: **tecido ≠ plasma**, o problema muda para classificação de tecido | Tabela 3.2 resumida | Parte II, 5 |
+| 5 | **Tentativa: plasma (GSE186575)** | O mais parecido com o artigo, mas: detecção com **AUC 0,55** (acaso); **0** promotores significativos para câncer, contra **526** para o lote "mix"; **idade sozinha prevê melhor (0,70)**. Lote e idade dominam o sinal → trocamos para o TCGA. O notebook reproduz tudo | 3 números grandes, sem gráfico | 5 (justificativa) |
+| 6 | **TCGA: dados e pipeline sem vazamento** | **Matriz**: 1.290 amostras (919 pacientes) × 336 mil CpGs (sem NaN, só autossomos) → 20 mil por variância. **Classes**: 380 normais / 910 tumores; 6 tecidos com cerca de 150 cada; estômago com só 2 normais. **Pipeline**: `SelectKBest` **dentro** dos folds → Random Forest (500 árvores, balanceado). **Validação**: nested CV **agrupada por paciente** (371 têm tumor e normal) | Diagrama pipeline + folds por paciente | 6, 7, 8, 9 |
+| 7 | **Resultados** | **Etapa 1** (tumor vs normal): acurácia 0,984 · AUC 0,997. **Etapa 2** (6 tecidos): acurácia 0,980 · F1 macro 0,980 · AUC 0,999. **Hierárquico**: 0,971. Mini-tabela com precisão, sensibilidade, especificidade e F1 por classe. Pior caso: cólon (sensibilidade 0,94), confundido com estômago | [tcga_etapa1.png] + [tcga_etapa2.png] | 10, 13 |
+| 8 | **"Bom demais?" Auditoria de vazamento** | 0 pacientes cruzando folds · filtro dentro do fold dá o mesmo resultado · **rótulos embaralhados → AUC 0,50** · **CpGs aleatórios → mesmo resultado** · 1 CpG → 90%. Contraprova no plasma: seleção fora da CV **fabrica AUC 0,84** com rótulos aleatórios (0,27 do jeito certo). Conclusão: a tarefa em tecido é fácil, sem vazamento | Tabela 4.5 enxuta | 7, 9 (critério central) |
+| 9 | **O que separa as classes** | Sim, há diferença (11). **KANK1** metilado no cólon; **RBP5/LITAF** desmetilados no fígado; o estômago fica **intermediário**, o que explica a confusão cólon ↔ estômago (12, 13). O sinal está espalhado: importância individual baixa | [tcga_heatmap_top_etapa2.png] | 11, 12, 13 |
+| 10 | **Limites: por que isto não é um teste clínico** | **Limitações (14)**: p ≫ n; estômago com 2 normais; desbalanceamento tratado; possível lote no TCGA. **Diferenças em relação ao artigo (15)**: tecido vs cfDNA; 1.290 vs 6.689; RF vs regressão logística; CV vs validação cega e travada; limiar 0,5 vs especificidade de 99%. **Não é teste clínico (16)**: exige biópsia; caso-controle; sem validação externa nem estádio; especificidade não medida na escala | 3 colunas curtas | 14, 15, 16 |
+| 11 | **Conclusão** | Metilação identifica tumor e tecido com cerca de 98% **na fonte**, sem vazamento; no plasma, com dados públicos, não. Essa distância é o que o artigo resolve com escala e sequenciamento direcionado. Uso real em tecido: câncer de origem desconhecida | Frase-síntese | — |
+| A1 | *Apêndice:* PCA | Normais agrupados por tecido; tumores dispersos (só se perguntarem) | [tcga_pca.png] | 6 |
+| A2 | *Apêndice:* hierárquico e tabela completa | Matriz 7 classes; métricas por classe | [tcga_hierarquico.png] | 10 |
+
+**Checagem de cobertura do enunciado:**
+
+| Ponto | Slide | | Ponto | Slide |
+|---|---|---|---|---|
+| 1 CCGA/STRIVE | 2 | | 9 validação por indivíduo | 6, 8 |
+| 2 Tecnologia | 2 | | 10 métricas | 7 (+ A2) |
+| 3 Escolha das regiões | 2 | | 11 diferenças separam? | 9 |
+| 4 Separação, validação, vazamento (artigo) | 3 | | 12 regiões que contribuem | 9 |
+| Estratégia de classificação (2 etapas) | 3 | | 13 desempenho por classe | 7, 9 |
+| Parte II (datasets, público × controlado) | 4 | | 14 limitações | 10 |
+| 5 Dataset escolhido e justificativa | 4, 5 | | 15 diferenças do artigo | 10 |
+| 6 Matriz, rótulos, NaN, classes, pré-processamento | 6 | | 16 por que não é teste clínico | 10 |
+| 7 Seleção dentro do treino | 6, 8 | | Extensão: fluxo hierárquico | 7 (+ A2) |
+| 8 Algoritmo | 6 | | Critério: prevenção de vazamento | 6, 8 |
+
+Fundamentação biológica (cfDNA, metilação): não tem slide próprio, de propósito (a turma já domina). Está coberta no relatório (seção 2.1).
 
 **Frase-síntese para o fechamento:** *"A assinatura de metilação dos tecidos é forte e fácil de capturar na fonte, o tumor, mas praticamente invisível no plasma com dados públicos e tecnologia de baixa resolução. Essa distância é exatamente o problema que o artigo resolve com escala e sequenciamento direcionado."*
