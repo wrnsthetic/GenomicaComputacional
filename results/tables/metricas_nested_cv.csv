@@ -1,13 +1,8 @@
-,,mean,std
-deteccao,acuracia,0.623,0.067
-deteccao,precisao,0.711,0.034
-deteccao,sensibilidade,0.763,0.145
-deteccao,especificidade,0.324,0.165
-deteccao,f1,0.728,0.074
-deteccao,roc_auc,0.553,0.182
-too,acuracia,0.711,0.119
-too,precisao,0.729,0.143
-too,sensibilidade,0.752,0.183
-too,especificidade,0.663,0.191
-too,f1,0.726,0.122
-too,roc_auc,0.789,0.136
+,detecção (câncer vs saudável),detecção (câncer vs saudável),origem (colorretal vs gástrico),origem (colorretal vs gástrico)
+,mean,std,mean,std
+acuracia,0.623,0.067,0.711,0.119
+precisao,0.711,0.034,0.729,0.143
+sensibilidade,0.763,0.145,0.752,0.183
+especificidade,0.324,0.165,0.663,0.191
+f1,0.728,0.074,0.726,0.122
+roc_auc,0.553,0.182,0.789,0.136

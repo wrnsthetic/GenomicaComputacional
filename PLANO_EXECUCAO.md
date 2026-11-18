@@ -12,32 +12,34 @@
 
 ## 0. Resumo executivo (onde estamos)
 
-**A história do trabalho em 6 frases:**
+**O trabalho em uma frase:** classificar câncer e tecido de origem pela metilação do DNA, com um **experimento principal em tecido tumoral (TCGA)** e uma **tentativa documentada em plasma (GSE186575)** que serve de contraste com o artigo.
+
+**A história em 6 frases:**
 1. O artigo detecta câncer e o tecido de origem (TOO) a partir da metilação do cfDNA do plasma, mas usa dados **privados** da GRAIL (CCGA/STRIVE).
-2. Investigamos datasets públicos e escolhemos primeiro o **GSE186575**, de plasma: colorretal, gástrico e saudáveis. É o candidato mais parecido com o artigo.
-3. No plasma, a **detecção falhou** (AUC 0,55 ≈ acaso) e o sinal estava dominado por **lote técnico e idade**. Documentamos tudo e decidimos trocar.
-4. O dataset principal passou a ser o **TCGA**: metilação de **tecido**, 6 tipos de câncer, 1.290 amostras. Ali o Random Forest teve desempenho muito alto (acurácia de 0,98 nas duas etapas).
-5. Uma **auditoria de vazamento** confirmou que o resultado é legítimo: a tarefa em tecido é genuinamente fácil.
+2. **Experimento principal — TCGA:** metilação de **tecido**, 6 tipos de câncer, 1.290 amostras de 919 pacientes. O Random Forest, validado por nested CV agrupada por paciente, separa tumor de normal e identifica o tecido de origem com acurácia de 0,98 (seção 4).
+3. Uma **auditoria de vazamento** confirmou que o resultado é legítimo: a tarefa em tecido é genuinamente fácil, porque o sinal está espalhado pelo genoma.
+4. **Tentativa documentada — plasma (GSE186575):** foi o primeiro dataset escolhido, por ser o mais parecido com o artigo (colorretal, gástrico e saudáveis). A **detecção falhou** (AUC 0,55 ≈ acaso), dominada por **lote técnico e idade** (seção 5).
+5. Por isso o TCGA virou o experimento principal (decisão D10), e o plasma ficou como evidência e contraste.
 6. O **contraste tecido × plasma** é o eixo da discussão. O sinal existe na fonte (o tumor), mas fica diluído no sangue. Por isso o artigo precisou de escala enorme e de sequenciamento direcionado.
 
 **Números-chave:**
 
 | Experimento | Tarefa | Resultado |
 |---|---|---|
-| Plasma (GSE186575) | Câncer vs saudável | AUC **0,55** ± 0,18 (acaso) |
-| Plasma (GSE186575) | Colorretal vs gástrico | AUC **0,79** ± 0,14 |
-| Tecido (TCGA) | Tumor vs normal | Acurácia **0,984** · AUC **0,997** |
-| Tecido (TCGA) | Tecido de origem (6 classes) | Acurácia **0,980** · F1 macro **0,980** |
-| Tecido (TCGA) | Hierárquico (normal + 6 tecidos) | Acurácia **0,971** |
+| **Principal — tecido (TCGA)** | Tumor vs normal | Acurácia **0,984** · AUC **0,997** |
+| **Principal — tecido (TCGA)** | Tecido de origem (6 classes) | Acurácia **0,980** · F1 macro **0,980** |
+| **Principal — tecido (TCGA)** | Hierárquico (normal + 6 tecidos) | Acurácia **0,971** |
+| Tentativa — plasma (GSE186575) | Câncer vs saudável | AUC **0,55** ± 0,18 (acaso) |
+| Tentativa — plasma (GSE186575) | Colorretal vs gástrico | AUC **0,79** ± 0,14 |
 
-**Próximo passo:** montar o notebook final de entrega e atualizar o relatório (ver seção 12).
+**Próximo passo:** validar o notebook final no Colab e reestruturar o relatório (ver seção 12).
 
 ---
 
 ## 1. Entregáveis
 
 - [~] **Relatório técnico** (`relatorio/relatorio.md`, depois LaTeX/Overleaf → PDF). O rascunho existe, mas ainda trata o GSE186575 como principal: **precisa ser reestruturado** (ver 12).
-- [ ] **Notebook Colab reproduzível único** (`notebooks/trabalho_final.ipynb`): TCGA como fluxo principal, mais uma seção com a tentativa em plasma.
+- [x] **Notebook Colab reproduzível único** (`notebooks/trabalho_final.ipynb`, gerado por `scripts/build_final_notebook.py`): TCGA como experimento principal (com auditoria), seção de tentativa em plasma, comparação e conclusões. Executado de ponta a ponta localmente; falta testar no Colab.
 - [x] **Registro de fontes, classes e validação:** seção 10 deste arquivo (vai para o relatório e para o início do notebook).
 
 Critério central do professor: **escolha de dados adequada** e **prevenção de vazamento de informação**.
@@ -129,64 +131,9 @@ Outras coortes conferidas: LUSC, READ, PAAD, PRAD, HNSC, THCA, UCEC e ESCA. O ar
 
 ---
 
-## 4. Experimento A — Plasma (GSE186575): tentativa documentada
+## 4. Experimento principal — Tecido tumoral (TCGA)
 
-### 4.1 Dados
-- cfMeDIP-seq (anticorpo que "pesca" o DNA metilado) de plasma, Peking University First Hospital.
-- Matriz: **98 amostras × 58.288 promotores**, em CPM (fragmentos metilados por milhão). Sem NaN; cerca de 9,3% de zeros.
-- **Feature** = quantidade de DNA metilado no promotor de um gene. É sinal agregado, não % por CpG.
-- Uma amostra por pessoa.
-
-### 4.2 Análise exploratória (`notebooks/exploracao/01_eda_gse186575.ipynb`)
-- **Sexo dominava o PC2:** 44 de 58 homens ficam no cluster "PC2 alto" e 33 de 39 mulheres no "baixo". O grupo gástrico é 77% masculino, então o modelo poderia separar gástrico de colorretal pelo sexo. **Removemos os promotores de chrX, chrY, MT e sem anotação**, restando 53.768. Depois disso, o efeito some.
-- **PC1 (46%) é técnico:** se correlaciona com a fração de zeros (r = −0,63). Os 2 CRC "mix" são outliers extremos.
-- **Lote "mix":**
-  - 25 de 31 controles são "mix", contra 2 de 32 CRC e 0 de 35 gástricos;
-  - um RF distingue controles mix de não-mix (todos saudáveis) com AUC de cerca de 0,82;
-  - o significado de "mix" **não está documentado no GEO**; é uma hipótese nossa.
-- **Idade:** os controles são cerca de 10 anos mais jovens (mediana de 50 anos, contra 62–64).
-
-### 4.3 Método (`notebooks/exploracao/02_modelagem_rf.ipynb`)
-- **Pré-processamento:** `log2(CPM+1)`, amostra a amostra, mais a remoção de X/Y/MT.
-- **Pipeline:**
-  1. filtro de presença (sinal > 0 em ≥50% das amostras de treino);
-  2. `SelectKBest(f_classif)`;
-  3. RF com 500 árvores e `class_weight="balanced"`.
-- **Validação:** nested CV (externa com 5 folds × 3 repetições; interna com 5 folds escolhendo k ∈ {100, 500, 2000} e `max_features` ∈ {sqrt, 0,1}), mais um hold-out 70/30.
-
-### 4.4 Resultados
-
-| Tarefa | Nested CV (média ± desvio) | Hold-out |
-|---|---|---|
-| Detecção (67 câncer vs 31 saudável) | AUC 0,553 ± 0,182 · acc 0,623 · sens 0,763 · **espec 0,324** | AUC 0,595 · acc 0,667 |
-| TOO (32 CRC vs 35 STAD) | AUC 0,789 ± 0,136 · acc 0,711 · F1 0,726 | AUC 0,873 · acc 0,810 |
-| Hierárquico (3 classes, out-of-fold) | acurácia 0,40 | — |
-
-**Investigação da falha:**
-- **Idade sozinha:** AUC de **0,70** na detecção (melhor que a metilação!) e 0,54 no TOO (não explica o TOO).
-- **Lote:** os **6 controles não-mix foram todos chamados de câncer**.
-- **Teste por promotor com FDR de 5%:**
-  - 0 promotores significativos em câncer vs saudável;
-  - 0 em CRC vs gástrico;
-  - **526 em controle mix vs controle não-mix** → o lote deixa mais marca do que o câncer.
-- **Outros pré-processamentos** (só genes codificadores, rank e z-score por amostra): a detecção chega no máximo a AUC de 0,64.
-- **Features mais importantes:** muitos **pseudogenes** (RPL/RPS…P), sinal de ruído técnico de mapeamento.
-
-### 4.5 Por que desistimos (decisão D10)
-A detecção ficou no acaso, não havia nenhum promotor significativo e o sinal de lote era maior que o de câncer. Isso **não permite um experimento de classificação viável**, que é o mínimo do enunciado. A tentativa fica no trabalho como **evidência** de que o problema em plasma é difícil e que exige a escala e a tecnologia do artigo.
-
-### 4.6 Demonstração de vazamento (fica no trabalho final)
-Com **rótulos aleatórios**:
-- seleção de features feita **antes** da CV: AUC **0,84** (sinal inventado);
-- seleção **dentro** do pipeline: AUC **0,27**.
-
-O valor abaixo de 0,5 é flutuação esperada com n pequeno e rótulos sem sinal; o ponto é que não há sinal espúrio.
-
----
-
-## 5. Experimento B — Tecido (TCGA): experimento principal
-
-### 5.1 Dados e amostragem
+### 4.1 Dados e amostragem
 - **Fonte:** UCSC Xena, arquivos `TCGA.<COORTE>.sampleMap/HumanMethylation450.gz`, mais o *probe map* `illuminaMethyl450_hg19_GPL16304_TCGAlegacy` (CpG → gene/cromossomo).
 - **Medida:** **beta value** (0 a 1) por CpG, ou seja, a fração das cópias de DNA metiladas naquele CpG. Química por bissulfito, como no artigo.
 - **6 tecidos:** cólon (COAD), estômago (STAD), pulmão (LUAD), fígado (LIHC), mama (BRCA) e rim (KIRC).
@@ -205,15 +152,15 @@ O valor abaixo de 0,5 é flutuação esperada com n pequeno e rótulos sem sinal
 
 São **919 pacientes**, dos quais **371** têm tumor e normal pareados.
 
-### 5.2 Pré-processamento (`notebooks/exploracao/03_tcga_rf.ipynb`)
+### 4.2 Pré-processamento (`notebooks/trabalho_final.ipynb`, seção 3; versão de testes em `notebooks/exploracao/03_tcga_rf.ipynb`)
 1. Mantidos só os CpGs autossômicos: 385.809 de 395.985 (remove o sinal de sexo).
 2. Juntadas as 6 coortes; removidos os 49.549 CpGs com algum NaN, restando 336.260.
 3. **Filtro não supervisionado** (não usa rótulos): os **20 mil CpGs de maior variância**. O enunciado só exige ajuste no treino para seleção **supervisionada**, e a auditoria mostrou que fazer esse filtro dentro da CV não muda nada.
-4. Cache em `data/processed/tcga_6coortes_top20k.parquet` (135 MB, fora do git).
+4. Cache da matriz completa (1.290 × 336.260, sem NaN) em `data/processed/tcga_6coortes_completa.parquet` (fora do git). O filtro de variância é refeito a partir dela, e a auditoria usa a mesma matriz.
 
 **PCA:** PC1 explica 34,7% e PC2 11,6%. Os **normais formam grupos compactos por tecido** (rim, mama, pulmão, fígado bem separados). Os **tumores se espalham**, refletindo heterogeneidade e desregulação da metilação. O fígado tumoral forma um "braço" próprio.
 
-### 5.3 Método
+### 4.3 Método
 - **Pipeline:** `SelectKBest(f_classif)` **dentro** do pipeline (supervisionado), seguido de RF com 500 árvores e `class_weight="balanced"`.
 - **Validação:** **nested CV com `StratifiedGroupKFold`, agrupada por paciente**.
   - Externa com 5 folds; interna com 3 folds escolhendo k ∈ {100, 500, 2000}. O k = 2000 foi escolhido na maioria dos folds.
@@ -221,7 +168,7 @@ São **919 pacientes**, dos quais **371** têm tumor e normal pareados.
 - **Etapa 1:** tumor vs normal. **Etapa 2:** tecido de origem entre os tumores (6 classes). **Hierárquico:** etapa 1 e, nos positivos, a etapa 2.
 - **Importância das features:** *permutation importance* num split agrupado 75/25 (k = 500), anotada com o gene pelo *probe map*.
 
-### 5.4 Resultados
+### 4.4 Resultados
 
 **Etapa 1 — tumor vs normal:** acurácia **0,984** · ROC-AUC **0,997**
 
@@ -267,7 +214,7 @@ Por tecido:
 - Os valores de *permutation importance* são baixos (≤0,007) porque há **muitos CpGs redundantes**: tirar um só não derruba o modelo. Isso é coerente com a auditoria (o sinal está espalhado).
 - Tabelas completas em `results/tables/tcga_importancias_etapa{1,2}.csv`.
 
-### 5.5 Auditoria de vazamento (`scripts/auditoria_tcga.py`)
+### 4.5 Auditoria de vazamento (`notebooks/trabalho_final.ipynb`, seção 3.8; versão em script: `scripts/auditoria_tcga.py`)
 
 | Teste | Etapa 1 | Etapa 2 | Conclusão |
 |---|---|---|---|
@@ -280,6 +227,61 @@ Por tecido:
 | **1 único CpG** | acc 0,905 | acc 0,331 | Um CpG separa 90% de tumor vs normal |
 
 **Risco que não dá para testar:** **lote ou placa** de processamento do TCGA confundido com o tipo de câncer, porque os IDs do Xena não trazem a placa. É mitigado pela coerência biológica (normais agrupados por tecido, marcadores tecido-específicos) e entra como **limitação**.
+
+---
+
+## 5. Tentativa documentada — Plasma (GSE186575)
+
+### 5.1 Dados
+- cfMeDIP-seq (anticorpo que "pesca" o DNA metilado) de plasma, Peking University First Hospital.
+- Matriz: **98 amostras × 58.288 promotores**, em CPM (fragmentos metilados por milhão). Sem NaN; cerca de 9,3% de zeros.
+- **Feature** = quantidade de DNA metilado no promotor de um gene. É sinal agregado, não % por CpG.
+- Uma amostra por pessoa.
+
+### 5.2 Análise exploratória (`notebooks/exploracao/01_eda_gse186575.ipynb`; resumo no notebook final, seção 4.1)
+- **Sexo dominava o PC2:** 44 de 58 homens ficam no cluster "PC2 alto" e 33 de 39 mulheres no "baixo". O grupo gástrico é 77% masculino, então o modelo poderia separar gástrico de colorretal pelo sexo. **Removemos os promotores de chrX, chrY, MT e sem anotação**, restando 53.768. Depois disso, o efeito some.
+- **PC1 (46%) é técnico:** se correlaciona com a fração de zeros (r = −0,63). Os 2 CRC "mix" são outliers extremos.
+- **Lote "mix":**
+  - 25 de 31 controles são "mix", contra 2 de 32 CRC e 0 de 35 gástricos;
+  - um RF distingue controles mix de não-mix (todos saudáveis) com AUC de cerca de 0,82;
+  - o significado de "mix" **não está documentado no GEO**; é uma hipótese nossa.
+- **Idade:** os controles são cerca de 10 anos mais jovens (mediana de 50 anos, contra 62–64).
+
+### 5.3 Método (`notebooks/exploracao/02_modelagem_rf.ipynb`; no notebook final, seção 4.2)
+- **Pré-processamento:** `log2(CPM+1)`, amostra a amostra, mais a remoção de X/Y/MT.
+- **Pipeline:**
+  1. filtro de presença (sinal > 0 em ≥50% das amostras de treino);
+  2. `SelectKBest(f_classif)`;
+  3. RF com 500 árvores e `class_weight="balanced"`.
+- **Validação:** nested CV (externa com 5 folds × 3 repetições; interna com 5 folds escolhendo k ∈ {100, 500, 2000} e `max_features` ∈ {sqrt, 0,1}), mais um hold-out 70/30.
+
+### 5.4 Resultados
+
+| Tarefa | Nested CV (média ± desvio) | Hold-out |
+|---|---|---|
+| Detecção (67 câncer vs 31 saudável) | AUC 0,553 ± 0,182 · acc 0,623 · sens 0,763 · **espec 0,324** | AUC 0,595 · acc 0,667 |
+| TOO (32 CRC vs 35 STAD) | AUC 0,789 ± 0,136 · acc 0,711 · F1 0,726 | AUC 0,873 · acc 0,810 |
+| Hierárquico (3 classes, out-of-fold) | acurácia 0,40 | — |
+
+**Investigação da falha:**
+- **Idade sozinha:** AUC de **0,70** na detecção (melhor que a metilação!) e 0,54 no TOO (não explica o TOO).
+- **Lote:** os **6 controles não-mix foram todos chamados de câncer**.
+- **Teste por promotor com FDR de 5%:**
+  - 0 promotores significativos em câncer vs saudável;
+  - 0 em CRC vs gástrico;
+  - **526 em controle mix vs controle não-mix** → o lote deixa mais marca do que o câncer.
+- **Outros pré-processamentos** (só genes codificadores, rank e z-score por amostra): a detecção chega no máximo a AUC de 0,64.
+- **Features mais importantes:** muitos **pseudogenes** (RPL/RPS…P), sinal de ruído técnico de mapeamento.
+
+### 5.5 Por que desistimos (decisão D10)
+A detecção ficou no acaso, não havia nenhum promotor significativo e o sinal de lote era maior que o de câncer. Isso **não permite um experimento de classificação viável**, que é o mínimo do enunciado. A tentativa fica no trabalho como **evidência** de que o problema em plasma é difícil e que exige a escala e a tecnologia do artigo.
+
+### 5.6 Demonstração de vazamento (notebook final, seção 4.3)
+Com **rótulos aleatórios**:
+- seleção de features feita **antes** da CV: AUC **0,84** (sinal inventado);
+- seleção **dentro** do pipeline: AUC **0,27**.
+
+O valor abaixo de 0,5 é flutuação esperada com n pequeno e rótulos sem sinal; o ponto é que não há sinal espúrio.
 
 ---
 
@@ -337,7 +339,7 @@ Por tecido:
 ## 8. Defesa: perguntas prováveis e respostas
 
 **"O resultado do TCGA não está bom demais? Teve vazamento?"**
-Não. A auditoria (5.5) mostra: 0 pacientes cruzando folds, filtro só no treino igual, CpGs aleatórios igual, rótulos embaralhados dando AUC de 0,50. A tarefa é fácil porque o tecido tumoral é quase todo DNA tumoral e cada órgão tem um programa de metilação próprio (Hoadley et al., 2018).
+Não. A auditoria (4.5) mostra: 0 pacientes cruzando folds, filtro só no treino igual, CpGs aleatórios igual, rótulos embaralhados dando AUC de 0,50. A tarefa é fácil porque o tecido tumoral é quase todo DNA tumoral e cada órgão tem um programa de metilação próprio (Hoadley et al., 2018).
 
 **"Se é fácil, por que fazer?"**
 1. É fácil para o classificador, não para um humano. Ninguém lê 485 mil valores.
@@ -377,7 +379,7 @@ No plasma, o sexo dominava o PCA, e o grupo gástrico era 77% masculino: o model
 | D5 | TCGA por coorte (não PanCan) | PanCan 14 GB | Cabe no Colab gratuito | Vigente |
 | D6 | Remover chrX/Y/MT/sem anotação no plasma | Manter tudo | O sexo dominava o PC2; gástrico 77% masculino | Vigente |
 | D7 | Versionar GSE186575 (22 MB) e Ensembl (3 MB) no git; TCGA fora | Baixar sempre | Robustez no dia da apresentação; limite de 100 MB/arquivo do GitHub | Vigente |
-| D8 | Manter o lote "mix" e medir (análise de sensibilidade) | Descartar os mix (sobrariam 6 controles) | Descartar inviabilizaria a detecção | Vigente (só no experimento A) |
+| D8 | Manter o lote "mix" e medir (análise de sensibilidade) | Descartar os mix (sobrariam 6 controles) | Descartar inviabilizaria a detecção | Vigente (só na tentativa com plasma) |
 | D9 | Notebooks gerados por script (`scripts/build_*.py`) | Editar o .ipynb à mão | Diff legível no git | Vigente |
 | D10 | **TCGA como principal**; GSE186575 como tentativa documentada | Plasma principal + TCGA extra | Detecção no plasma ≈ acaso; 0 promotores com FDR; lote > câncer. O TCGA permite um experimento viável, agrupamento por paciente e fluxo hierárquico. O problema passa a ser **classificação de tecido** | Vigente |
 | D11 | TCGA: ≤150 tumores/coorte + todos os normais + pareados; filtro sem NaN + autossomos + top 20 mil por variância fora da CV | Todas as amostras; filtro dentro da CV | Equilibra classes (BRCA tinha 790 tumores); cabe no Colab; não supervisionado | Vigente (auditado) |
@@ -390,7 +392,7 @@ No plasma, o sexo dominava o PCA, e o grupo gástrico era 77% masculino: o model
 
 ## 10. Registro de fontes, classes e validação (para o relatório e o notebook)
 
-| Item | Experimento B — TCGA (principal) | Experimento A — GSE186575 (tentativa) |
+| Item | Experimento principal — TCGA (tecido) | Tentativa — GSE186575 (plasma) |
 |---|---|---|
 | Fonte | UCSC Xena: `TCGA.{COAD,STAD,LUAD,LIHC,BRCA,KIRC}.sampleMap/HumanMethylation450.gz` + probe map `illuminaMethyl450_hg19_GPL16304_TCGAlegacy` | GEO FTP: `GSE186575_DNA-Met_CPM_matrix_promoter.txt.gz` + `GSE186575_series_matrix.txt.gz`; anotação Ensembl BioMart (GRCh38) |
 | Classes | Etapa 1: tumor (`01`) vs normal (`11`). Etapa 2: cólon, estômago, pulmão, fígado, mama, rim | Detecção: CRC+STAD vs NC. TOO: CRC vs STAD |
@@ -409,12 +411,12 @@ GenomicaComputacional/
 ├── docs/                        # enunciado e artigo (PDF)
 ├── data/raw/                    # GSE186575 (no git); data/raw/tcga/ (fora do git, ~2,7 GB)
 ├── data/reference/              # ensembl_genes_hg38.tsv
-├── data/processed/              # cache parquet do TCGA (fora do git)
+├── data/processed/              # cache parquet do TCGA, matriz completa (fora do git)
 ├── notebooks/exploracao/        # 01_eda_gse186575 · 02_modelagem_rf · 03_tcga_rf
-├── notebooks/trabalho_final.ipynb  # (a criar) entrega
+├── notebooks/trabalho_final.ipynb  # ENTREGA: notebook único (gerado por scripts/build_final_notebook.py)
 ├── results/figures, tables/     # figuras e tabelas geradas
 ├── relatorio/relatorio.md       # rascunho do relatório
-└── scripts/                     # build_*_notebook.py, auditoria_tcga.py
+└── scripts/                     # build_final_notebook.py (entrega), build_*_notebook.py (testes), auditoria_tcga.py
 ```
 
 - **Ambiente local:** `.venv` com Python 3.13. Tempo de execução: EDA do plasma ~1 min; modelagem do plasma ~12 min; TCGA ~7 min com os downloads prontos; auditoria ~10 min.
@@ -428,18 +430,13 @@ GenomicaComputacional/
 **Concluído:**
 - [x] Leitura do enunciado e do artigo; plano e log de decisões
 - [x] Parte II: investigação de 6 datasets + CCGA/STRIVE
-- [x] Experimento A (plasma): EDA, modelagem, investigação da falha, decisão de troca
-- [x] Experimento B (TCGA): download, amostragem, nested CV agrupada, hierárquico, importâncias, heatmap
+- [x] Experimento principal (TCGA): download, amostragem, nested CV agrupada, hierárquico, importâncias, heatmap
+- [x] Tentativa com plasma (GSE186575): EDA, modelagem, investigação da falha, decisão de troca
 - [x] Auditoria de vazamento do TCGA
 - [x] Rascunho do relatório (Parte I, Parte II e metodologia do plasma)
 
 **Pendente (em ordem):**
-1. [ ] **Notebook final** `notebooks/trabalho_final.ipynb`, com células de texto explicativas:
-   1. registro de fontes e classes;
-   2. Parte II resumida;
-   3. TCGA: dados, EDA, pipeline, etapa 1, etapa 2, hierárquico, importâncias, auditoria;
-   4. seção "Tentativa com plasma" com os números-chave e a demonstração de vazamento;
-   5. conclusões.
+1. [x] **Notebook final** `notebooks/trabalho_final.ipynb`: registro de fontes/classes/validação → contexto e Parte II → **TCGA** (dados, PCA, pipeline, etapa 1, etapa 2, hierárquico, importâncias, auditoria) → **tentativa com plasma** (confundidores, FDR, nested CV, lote/idade, demonstração de vazamento) → comparação → conclusões.
 2. [ ] **Validar o notebook final no Google Colab gratuito** (memória e tempo; o download do TCGA leva alguns minutos).
 3. [ ] **Reestruturar o relatório:** TCGA como Parte III principal; plasma como subseção da Parte II ("avaliação experimental"); preencher resultados, Parte IV (seção 7), conclusão e as novas referências (Hoadley 2018, Moran 2016, Capper 2018).
 4. [ ] Converter o relatório para LaTeX (Overleaf).
@@ -449,6 +446,11 @@ GenomicaComputacional/
 **Conferência deste plano (18/11/2026):**
 - Todos os números das seções 4, 5 e 6 foram conferidos contra as saídas dos notebooks `02_modelagem_rf`, `03_tcga_rf`, as tabelas em `results/tables/` e a saída da `auditoria_tcga.py`.
 - Os números do artigo (seção 2) foram conferidos no PDF.
+- **Notebook final executado de ponta a ponta localmente (18/11/2026), sem erros.** Ele reproduz exatamente os números das seções 4 e 5:
+  - TCGA: 0,984 / 0,997 · 0,980 / 0,980 / 0,999 · hierárquico 0,971;
+  - auditoria idêntica;
+  - plasma: AUC 0,553 / 0,789; FDR 0 / 0 / 526; idade 0,703; vazamento 0,838 × 0,265.
+  - O notebook também mostra a tabela por classe do fluxo hierárquico: estômago tem F1 0,938, o pior; os demais ficam ≥ 0,95.
 
 ---
 
@@ -485,16 +487,16 @@ GenomicaComputacional/
 | 5 | **O artigo: desenho do estudo** | CCGA + STRIVE; 6.689 participantes; tabela treino/validação; bissulfito + painel de 1,1 milhão de CpGs | Tabela 2.2 |
 | 6 | **O artigo: classificação e resultados** | Duas etapas (detecção → TOO); *source models* + regressões logísticas; especificidade 99,3%; sensibilidade por estádio; TOO 93% | Tabela 2.3 + barras de sensibilidade por estádio |
 | 7 | **Salvaguardas contra vazamento no artigo** | Validação travada e cega; equipe independente; centros removidos; CCGA × STRIVE; riscos residuais | Lista |
-| 8 | **Busca de dados públicos** | CCGA/STRIVE indisponíveis (`ipdSharing: NO`); público × controlado; 6 candidatos avaliados | Tabela 3.2 resumida |
-| 9 | **Tentativa 1: plasma (GSE186575)** | 98 amostras, cfMeDIP; o EDA revela sexo, lote "mix" e idade | [eda_pca.png] + [eda_pca_autossomos.png] |
-| 10 | **Por que o plasma falhou** | Detecção AUC 0,55; idade sozinha 0,70; 0 promotores com FDR; 526 por lote; decisão de troca | Tabela 4.4 + barras "câncer vs lote" |
-| 11 | **Experimento principal: TCGA** | 6 tecidos, 1.290 amostras, 919 pacientes, beta values 450K; tecido ≠ plasma (problema redefinido) | Tabela 5.1 |
-| 12 | **Pipeline sem vazamento** | Filtro não supervisionado → SelectKBest no pipeline → RF; nested CV **agrupada por paciente** | Diagrama do pipeline + esquema dos folds |
-| 13 | **Exploração: tecidos têm assinatura** | Normais agrupados por tecido; tumores dispersos | [tcga_pca.png] |
-| 14 | **Resultados: tumor vs normal** | acc 0,984 · AUC 0,997; por tecido; estômago com 2 normais | [tcga_etapa1.png] + tabela por tecido |
-| 15 | **Resultados: tecido de origem e hierárquico** | acc 0,980 (6 classes); hierárquico 0,971; confusão cólon ↔ estômago | [tcga_etapa2.png] / [tcga_hierarquico.png] |
-| 16 | **O que o modelo aprendeu** | KANK1 (cólon), RBP5/LITAF (fígado), estômago intermediário | [tcga_heatmap_top_etapa2.png] |
-| 17 | **"Bom demais?" Auditoria de vazamento** | CpGs aleatórios = mesmo resultado; rótulos embaralhados = 0,50; 1 CpG = 90%; demonstração com o plasma (0,84 com vazamento × 0,27 sem) | Tabela 5.5 |
+| 8 | **Busca de dados públicos** | CCGA/STRIVE indisponíveis (`ipdSharing: NO`); público × controlado; 6 candidatos avaliados; **escolha: TCGA (tecido) como principal, GSE186575 (plasma) como tentativa** | Tabela 3.2 resumida |
+| 9 | **Experimento principal: TCGA** | 6 tecidos, 1.290 amostras, 919 pacientes, beta values 450K; tecido ≠ plasma (problema redefinido para classificação de tecido) | Tabela 4.1 |
+| 10 | **Pipeline sem vazamento** | Filtro não supervisionado → SelectKBest no pipeline → RF; nested CV **agrupada por paciente** | Diagrama do pipeline + esquema dos folds |
+| 11 | **Exploração: tecidos têm assinatura** | Normais agrupados por tecido; tumores dispersos | [tcga_pca.png] |
+| 12 | **Resultados: tumor vs normal** | acc 0,984 · AUC 0,997; por tecido; estômago com 2 normais | [tcga_etapa1.png] + tabela por tecido |
+| 13 | **Resultados: tecido de origem e hierárquico** | acc 0,980 (6 classes); hierárquico 0,971; confusão cólon ↔ estômago | [tcga_etapa2.png] / [tcga_hierarquico.png] |
+| 14 | **O que o modelo aprendeu** | KANK1 (cólon), RBP5/LITAF (fígado), estômago intermediário | [tcga_heatmap_top_etapa2.png] |
+| 15 | **"Bom demais?" Auditoria de vazamento** | CpGs aleatórios = mesmo resultado; rótulos embaralhados = 0,50; 1 CpG = 90%; por que um experimento "fácil" importa (CUP, controle positivo) | Tabela 4.5 |
+| 16 | **Tentativa: plasma (GSE186575)** | Primeiro dataset escolhido (mais parecido com o artigo); 98 amostras, cfMeDIP; o EDA revela sexo, lote "mix" e idade | [eda_pca.png] + [eda_pca_autossomos.png] |
+| 17 | **Por que o plasma falhou** | Detecção AUC 0,55; idade sozinha 0,70; 0 promotores com FDR; 526 por lote; demonstração de vazamento (0,84 com × 0,27 sem); decisão de troca | Tabela 5.4 + barras "câncer vs lote" |
 | 18 | **Tecido × plasma × artigo** | Por que é fácil no tecido e difícil no sangue; o que o artigo faz para vencer isso | Tabela 6 |
 | 19 | **Limitações e por que não é teste clínico** | Perguntas 14 e 16 resumidas | Lista |
 | 20 | **Conclusão** | A assinatura existe na fonte; no plasma exige escala e tecnologia; prevenção de vazamento verificada; uso real (CUP) | Frase-síntese |
