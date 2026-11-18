@@ -169,6 +169,8 @@ Estrutura sugerida do notebook:
 | D6 | 2026-11-17 | Remover promotores de chrX, chrY, MT e sem anotação | Manter todos; ajustar por sexo | PCA mostrou que o sexo domina o PC2; STAD é 77% masculino → o modelo aprenderia sexo em vez de tecido de origem |
 | D7 | 2026-11-17 | Versionar no git os dados do GSE186575 (22 MB) e a anotação Ensembl (3 MB); TCGA fica fora do git | Baixar tudo sempre do GEO | Garante que o notebook roda no dia da apresentação mesmo se o GEO estiver fora; o notebook ainda baixa do GEO se faltar algum arquivo. Arquivos do TCGA têm centenas de MB (limite do GitHub: 100 MB/arquivo) |
 | D8 | 2026-11-17 | Tratar o lote `mix` como confundidor: reportar e fazer análise de sensibilidade (avaliar à parte os 6 NC não-mix e os 2 CRC mix) | Descartar amostras mix (sobrariam só 6 controles) | Remover os mix inviabiliza a tarefa de detecção; é melhor manter, medir e discutir o viés |
+| D10 | 2026-11-17 | TCGA (tecido, 450K) como dataset principal; GSE186575 como tentativa documentada | Manter GSE186575 principal + TCGA adicional | Detecção em plasma ≈ acaso (AUC 0,55), sem promotores significativos após FDR e sinal de lote > sinal de câncer; TCGA permite experimento viável, validação agrupada por paciente (item 9 do enunciado) e fluxo hierárquico. O problema passa a ser explicitamente **classificação de tecido**, não detecção em cfDNA |
+| D11 | 2026-11-17 | TCGA: até 150 tumores/coorte + todos os normais + tumores pareados; filtro não supervisionado (sem NaN, autossomos, top 20 mil por variância) fora da CV | Usar todas as amostras / seleção dentro da CV | Equilibra classes (BRCA tinha 790 tumores) e cabe no Colab gratuito; enunciado só exige ajuste no treino para seleção **supervisionada** |
 | D9 | 2026-11-17 | Estrutura de pastas + notebooks gerados por script (`scripts/build_*.py`) | Editar o .ipynb à mão | Diff legível no git; notebook de entrega único em `notebooks/trabalho_final.ipynb`, rascunhos em `notebooks/exploracao/` |
 
 ---
@@ -201,4 +203,9 @@ Estrutura sugerida do notebook:
   - **Variações de pré-processamento** (protein-coding, rank, z-score por amostra): detecção no máximo AUC 0,64
   - **Demo de vazamento (rótulos aleatórios):** AUC 0,84 com seleção fora da CV vs 0,27 dentro → seleção fora da CV inventa sinal
   - Top features: muitos pseudogenes (RPL/RPS…P) → provável ruído técnico de mapeamento
-- [ ] **PRÓXIMO:** decidir se adiciona o experimento TCGA (tecido) para contrastar com o plasma
+- [x] **Decisão D10:** TCGA vira o dataset **principal**; GSE186575 fica documentado como tentativa em plasma (motivo: detecção ≈ acaso, sinal dominado por lote/idade)
+- [x] Notebook TCGA (rascunho) [03_tcga_rf.ipynb](notebooks/exploracao/03_tcga_rf.ipynb) — 6 tecidos, 1.290 amostras (910 tumor / 380 normal), 919 pacientes (371 com par tumor+normal), 20 mil CpGs; nested CV agrupada por paciente:
+  - **Etapa 1 tumor vs normal:** acurácia 0,984 · AUC 0,997 · sens 0,987 · espec 0,979 (estômago só tem 2 normais → espec. 0/2 nesse tecido)
+  - **Etapa 2 TOO (6 classes):** acurácia 0,980 · F1 macro 0,980 · AUC macro 0,999; pior par: cólon ↔ estômago (9 cólon → estômago)
+  - **Hierárquico (7 classes):** acurácia 0,971
+- [ ] **PRÓXIMO:** montar `notebooks/trabalho_final.ipynb` (TCGA principal + seção curta do GSE186575) e preencher resultados no relatório

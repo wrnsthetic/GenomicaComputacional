@@ -11,3 +11,4 @@ data/raw/*.tar
 .DS_Store
 Thumbs.db
 .vscode/
+data/processed/*.parquet
