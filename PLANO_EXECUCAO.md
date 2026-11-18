@@ -32,13 +32,13 @@
 | Tentativa — plasma (GSE186575) | Câncer vs saudável | AUC **0,55** ± 0,18 (acaso) |
 | Tentativa — plasma (GSE186575) | Colorretal vs gástrico | AUC **0,79** ± 0,14 |
 
-**Próximo passo:** validar o notebook final no Colab, converter o relatório para LaTeX e montar os slides (ver seção 12).
+**Próximo passo:** compilar o relatório no Overleaf, validar o notebook no Colab e montar os slides (ver seção 12).
 
 ---
 
 ## 1. Entregáveis
 
-- [x] **Relatório técnico** (`relatorio/relatorio.md`): reestruturado com o TCGA como Parte III e o plasma como avaliação experimental na Parte II (3.3). Resultados, Parte IV e conclusão estão preenchidos. Falta converter para LaTeX/Overleaf → PDF.
+- [x] **Relatório técnico** (`relatorio/relatorio.md`): reestruturado com o TCGA como Parte III e o plasma como avaliação experimental na Parte II (3.3). Resultados, Parte IV e conclusão estão preenchidos. Convertido para LaTeX em `relatorio/latex/` (`main.tex` + `figuras/`), gerado por `scripts/md_to_latex.py` (pandoc). Falta compilar no Overleaf → PDF.
 - [x] **Notebook Colab reproduzível único** (`notebooks/trabalho_final.ipynb`, gerado por `scripts/build_final_notebook.py`): TCGA como experimento principal (com auditoria), seção de tentativa em plasma, comparação e conclusões. Executado de ponta a ponta localmente; falta testar no Colab.
 - [x] **Registro de fontes, classes e validação:** seção 10 deste arquivo (vai para o relatório e para o início do notebook).
 
@@ -415,7 +415,8 @@ GenomicaComputacional/
 ├── notebooks/exploracao/        # 01_eda_gse186575 · 02_modelagem_rf · 03_tcga_rf
 ├── notebooks/trabalho_final.ipynb  # ENTREGA: notebook único (gerado por scripts/build_final_notebook.py)
 ├── results/figures, tables/     # figuras e tabelas geradas
-├── relatorio/relatorio.md       # rascunho do relatório
+├── relatorio/relatorio.md       # relatório (fonte em Markdown)
+├── relatorio/latex/             # main.tex + figuras/ para o Overleaf (gerado)
 └── scripts/                     # build_final_notebook.py (entrega), build_*_notebook.py (testes), auditoria_tcga.py
 ```
 
@@ -439,7 +440,7 @@ GenomicaComputacional/
 1. [x] **Notebook final** `notebooks/trabalho_final.ipynb`: registro de fontes/classes/validação → contexto e Parte II → **TCGA** (dados, PCA, pipeline, etapa 1, etapa 2, hierárquico, importâncias, auditoria) → **tentativa com plasma** (confundidores, FDR, nested CV, lote/idade, demonstração de vazamento) → comparação → conclusões.
 2. [ ] **Validar o notebook final no Google Colab gratuito** (memória e tempo; o download do TCGA leva alguns minutos).
 3. [x] **Reestruturar o relatório:** TCGA como Parte III principal; plasma como subseção da Parte II ("avaliação experimental"); preencher resultados, Parte IV (seção 7), conclusão e as novas referências (Hoadley 2018, Moran 2016, Capper 2018).
-4. [ ] Converter o relatório para LaTeX (Overleaf).
+4. [x] Converter o relatório para LaTeX: `python scripts/md_to_latex.py` gera `relatorio/latex/`. Para usar no Overleaf: compactar a pasta `relatorio/latex/` em .zip, fazer *New Project → Upload Project* e compilar com pdfLaTeX. **Não foi compilado localmente** (sem LaTeX instalado), então conferir o primeiro build no Overleaf. Editar sempre o `.md` e regenerar, ou passar a editar só no Overleaf; não misturar os dois.
 5. [ ] Montar os slides (seção 14).
 6. [ ] (Opcional) Repositório no GitHub e ajuste de `REPO_URL` nos notebooks.
 

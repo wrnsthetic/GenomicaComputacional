@@ -228,6 +228,8 @@ As 1.290 amostras vêm de **919 pacientes**, dos quais **371 têm tumor e normal
 
 Na **análise exploratória por PCA** (PC1 com 34,7% e PC2 com 11,6% da variância), as amostras **normais formam grupos compactos por tecido**, e os **tumores se dispersam**. Isso reflete a heterogeneidade e a desregulação da metilação no câncer. O sinal de tecido é visível antes de qualquer modelo supervisionado.
 
+`[Figura: tcga_pca.png | PCA dos 20 mil CpGs de maior variância, colorida por tecido e tipo (esquerda) e por tumor/normal (direita).]`
+
 ### 4.3 Classificador
 
 **Algoritmo: Random Forest** (Breiman, 2001). É um conjunto de árvores de decisão, cada uma treinada numa amostra *bootstrap* dos dados e considerando, a cada divisão, um subconjunto aleatório de features. A predição final é a votação das árvores. Foi escolhido porque:
@@ -284,7 +286,7 @@ Desempenho dentro de cada tecido:
 
 A sensibilidade é de pelo menos 0,97 em todos os tecidos. A especificidade do estômago não tem valor estatístico, porque o TCGA tem apenas duas amostras normais gástricas.
 
-`[Figura: results/figures/tcga_etapa1.png — matriz de confusão e curva ROC]`
+`[Figura: tcga_etapa1.png | Etapa 1 (tumor vs normal): matriz de confusão e curva ROC das predições da validação cruzada aninhada.]`
 
 ### 5.2 Etapa 2 — tecido de origem
 
@@ -301,7 +303,7 @@ Acurácia de **0,980**, F1 macro de **0,980** e ROC-AUC macro (um-contra-todos) 
 
 Fígado, mama, pulmão e rim ficam acima de 0,99. Os erros se concentram no par **cólon ↔ estômago**.
 
-`[Figura: results/figures/tcga_etapa2.png — matriz de confusão]`
+`[Figura: tcga_etapa2.png | Etapa 2 (tecido de origem): matriz de confusão das predições da validação cruzada aninhada.]`
 
 ### 5.3 Fluxo hierárquico
 
@@ -311,7 +313,7 @@ Acurácia de **0,971** em 7 classes.
 - **Maior confusão:** 9 tumores de cólon foram chamados de estômago, e 3 de estômago foram chamados de cólon.
 - **Por classe:** o F1 vai de 0,938 (estômago) a 0,990 (mama).
 
-`[Figura: results/figures/tcga_hierarquico.png]`
+`[Figura: tcga_hierarquico.png | Fluxo hierárquico (normal + 6 tecidos): matriz de confusão out-of-fold.]`
 
 ### 5.4 CpGs mais relevantes
 
@@ -326,7 +328,7 @@ O **estômago ocupa uma posição intermediária entre o cólon e os demais teci
 
 Os valores de *permutation importance* são baixos (≤ 0,007) porque há **muitos CpGs redundantes**: retirar um único CpG não altera o modelo. Isso indica que o sinal está distribuído por muitos sítios, como confirma a auditoria a seguir.
 
-`[Figuras: results/figures/tcga_importancias_etapa2.png e tcga_heatmap_top_etapa2.png]`
+`[Figura: tcga_heatmap_top_etapa2.png | Beta médio, por tecido, dos 10 CpGs mais importantes da etapa 2 (permutation importance).]`
 
 ### 5.5 Auditoria de vazamento
 
@@ -352,21 +354,23 @@ Um risco que não pode ser testado com os dados disponíveis é o **efeito de lo
 
 ## 6. Parte IV — Discussão
 
-**6.1 Há diferenças de metilação capazes de separar as classes?**
+As respostas abaixo seguem a numeração das questões do enunciado.
+
+**Questão 11. Há diferenças de metilação capazes de separar as classes?**
 - **Em tecido, sim, e de forma muito robusta.** Tumor e normal são separados com AUC de 0,997, e os seis tecidos de origem com acurácia de 0,98. 20 mil CpGs escolhidos ao acaso produzem o mesmo resultado, e um único CpG já separa 90% das amostras tumor vs normal.
 - **No plasma, com o GSE186575, não de forma detectável para câncer vs saudável.** Nenhum promotor passou na correção para testes múltiplos, e o classificador ficou no nível do acaso. Para colorretal vs gástrico, há um sinal multivariado fraco (AUC de 0,79), sem nenhum promotor individualmente significativo.
 
-**6.2 Quais regiões contribuem mais?**
+**Questão 12. Quais regiões contribuem mais?**
 - **No tecido**, CpGs com padrão **tecido-específico**: KANK1 (metilado no cólon), RBP5 e LITAF (desmetilados no fígado), ERI3 e TCF3 (desmetilados no cólon). O estômago tem valores intermediários entre o cólon e os demais tecidos, o que explica a principal confusão do modelo.
 - **No plasma**, os promotores mais importantes eram majoritariamente pseudogenes ribossomais, o que sugere ruído técnico de mapeamento, e não biologia tumoral.
 - Em ambos os casos, a importância individual é baixa por causa da redundância entre features.
 
-**6.3 Desempenho e variação entre classes.**
+**Questão 13. Desempenho e variação entre classes.**
 - **No tecido**, fígado, mama, pulmão e rim têm F1 ≥ 0,99 na etapa 2. O cólon tem a menor sensibilidade (0,94), principalmente por confusão com o estômago, que é o par anatômica e embriologicamente mais próximo.
 - Na etapa 1, os tumores de fígado são os mais chamados de normal (sensibilidade de 0,967), e a especificidade do estômago não pode ser avaliada (2 normais).
 - **No plasma**, a detecção falha (especificidade de 0,32), e a predição de origem é moderada.
 
-**6.4 Limitações: tamanho amostral, desbalanceamento e alta dimensionalidade.**
+**Questão 14. Limitações: tamanho amostral, desbalanceamento e alta dimensionalidade.**
 - **Alta dimensionalidade (p ≫ n):** são 20 mil CpGs para 1.290 amostras no TCGA, e 53 mil promotores para 98 amostras no plasma. O risco de sobreajuste foi mitigado pela seleção dentro da validação e pela validação aninhada. No TCGA, a auditoria com rótulos embaralhados confirma que não há sinal espúrio.
 - **Desbalanceamento:**
   - o estômago tem apenas 2 normais e a mama tinha 790 tumores;
@@ -377,7 +381,7 @@ Um risco que não pode ser testado com os dados disponíveis é o **efeito de lo
   - no TCGA, não é possível descartar um efeito de lote/placa associado à coorte;
   - os tumores do TCGA são casos já diagnosticados, sem controle de estádio.
 
-**6.5 Diferenças em relação à metodologia original.**
+**Questão 15. Diferenças em relação à metodologia original.**
 
 | Aspecto | Liu et al. (2020) | Este trabalho — TCGA | Este trabalho — GSE186575 |
 |---|---|---|---|
@@ -401,7 +405,7 @@ A comparação mais importante é entre as colunas: **a assinatura de metilaçã
 
 O experimento em tecido também tem valor próprio. Classificadores de metilação em tecido são usados na prática para identificar a origem de **cânceres de sítio primário desconhecido**, que respondem por 3–5% dos cânceres (Moran et al., 2016), e para classificar tumores do sistema nervoso central (Capper et al., 2018). Além disso, o experimento funciona como **controle positivo** do pipeline: mostra que o método funciona quando o sinal existe. Assim, a falha no plasma pode ser atribuída aos dados, e não ao método.
 
-**6.6 Por que o resultado não pode ser interpretado como um teste clínico de detecção precoce.**
+**Questão 16. Por que o resultado não pode ser interpretado como um teste clínico de detecção precoce.**
 1. **Material inadequado:** o experimento principal usa **tecido**, cuja obtenção já exige uma biópsia, ou seja, já pressupõe a suspeita de uma lesão. Um teste de rastreamento precisa funcionar no sangue.
 2. **Desenho caso-controle:** os pacientes já tinham diagnóstico. Um teste de rastreamento precisa ser avaliado numa população assintomática, onde a prevalência é baixa (cerca de 1,3% ao ano) e o valor preditivo positivo depende fortemente da especificidade.
 3. **Especificidade não demonstrada na escala necessária:** com algumas centenas de normais (ou 31 controles, no plasma), não é possível demonstrar uma taxa de falsos positivos abaixo de 1%.
