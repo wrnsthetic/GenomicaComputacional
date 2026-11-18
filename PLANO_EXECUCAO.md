@@ -208,4 +208,11 @@ Estrutura sugerida do notebook:
   - **Etapa 1 tumor vs normal:** acurácia 0,984 · AUC 0,997 · sens 0,987 · espec 0,979 (estômago só tem 2 normais → espec. 0/2 nesse tecido)
   - **Etapa 2 TOO (6 classes):** acurácia 0,980 · F1 macro 0,980 · AUC macro 0,999; pior par: cólon ↔ estômago (9 cólon → estômago)
   - **Hierárquico (7 classes):** acurácia 0,971
+- [x] **Auditoria de vazamento** ([scripts/auditoria_tcga.py](scripts/auditoria_tcga.py)) — nenhum vazamento encontrado:
+  - 0 IDs duplicados; 0 pacientes em treino e teste do mesmo fold
+  - Filtro de variância ajustado só no treino: mesmos resultados (etapa 1 acc 0,982; etapa 2 acc 0,977)
+  - 20k CpGs **aleatórios**: mesmos resultados (0,988 / 0,980) → sinal espalhado pelo genoma, não fruto da seleção
+  - Rótulos embaralhados: AUC 0,50 nas duas etapas (acc = proporção da classe majoritária / ~1/6) → pipeline não "inventa" sinal
+  - Modelo trivial: árvore de 3 níveis acc 0,970 (etapa 1) e 0,647 (etapa 2); **1 único CpG** separa tumor/normal com acc 0,905 → tarefa genuinamente fácil
+  - Risco não testável: lote/placa do TCGA confundido com o tipo de câncer (IDs do Xena não trazem a placa) → limitação
 - [ ] **PRÓXIMO:** montar `notebooks/trabalho_final.ipynb` (TCGA principal + seção curta do GSE186575) e preencher resultados no relatório
