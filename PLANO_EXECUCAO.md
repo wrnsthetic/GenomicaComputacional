@@ -192,4 +192,13 @@ Estrutura sugerida do notebook:
 - [x] Parte II — investigação dos datasets (tabela 2.2 preenchida)
 - [x] Estrutura do repositório + git local + EDA do GSE186575
 - [ ] Criar repositório no GitHub e ajustar `REPO_URL` nos notebooks
-- [ ] **PRÓXIMO:** notebook de modelagem (rascunho) → pipeline RF com validação aninhada: (1) detecção câncer vs saudável, (2) TOO CRC vs STAD, (3) análise de sensibilidade do lote
+- [x] Notebook de modelagem (rascunho) [02_modelagem_rf.ipynb](notebooks/exploracao/02_modelagem_rf.ipynb) — resultados:
+  - **Detecção:** nested CV AUC 0,55 ± 0,18 (≈ acaso); especificidade 0,32. Idade sozinha: AUC 0,70
+  - **TOO CRC vs STAD:** nested CV AUC 0,79 ± 0,14; hold-out AUC 0,87, acurácia 0,81. Idade sozinha: AUC 0,54 (não explica)
+  - **Hierárquico (3 classes):** acurácia 0,40
+  - **Lote:** os 6 NC não-mix foram todos chamados de câncer
+  - **Sinal univariado (FDR 5%):** 0 promotores em câncer vs saudável, 0 em CRC vs STAD; 526 em NC mix vs NC não-mix (só lote)
+  - **Variações de pré-processamento** (protein-coding, rank, z-score por amostra): detecção no máximo AUC 0,64
+  - **Demo de vazamento (rótulos aleatórios):** AUC 0,84 com seleção fora da CV vs 0,27 dentro → seleção fora da CV inventa sinal
+  - Top features: muitos pseudogenes (RPL/RPS…P) → provável ruído técnico de mapeamento
+- [ ] **PRÓXIMO:** decidir se adiciona o experimento TCGA (tecido) para contrastar com o plasma
